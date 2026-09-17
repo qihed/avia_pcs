@@ -1,0 +1,54 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '21', cache: maven}
+      - run: cd console-app && ./mvnw -B -ntp clean verify
+      - run: python3 scripts/verify.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: avia-booking-console-jar
+          path: console-app/target/avia-booking.jar
+  smoke:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: avia_booking
+          POSTGRES_USER: avia_app
+          POSTGRES_PASSWORD: ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U avia_app -d avia_booking"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '21', cache: maven}
+      - run: cd console-app && ./mvnw -B -ntp -DskipTests clean package
+      - run: cd console-app && java -jar target/avia-booking.jar < ../examples/demo-session.txt > smoke.log
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/avia_booking?currentSchema=avia
+          DB_USER: avia_app
+          DB_PASSWORD: ci-password
+          DEMO_DATA: 'true'
+          EXPORT_DIR: exports
+          APP_TIME_ZONE: Europe/Moscow
+      - run: cat console-app/smoke.log
+        if: always()
+      - run: |
+          grep -F "Пассажиров: 6" console-app/smoke.log
+          grep -F "102 390,00" console-app/smoke.log
+          grep -F "До свидания" console-app/smoke.log

@@ -1,0 +1,21 @@
+# IDE and operating-system files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Java / Maven build output
+**/target/
+build-reports/
+__pycache__/
+
+# Local secrets and runtime data
+.env
+.env.*
+!.env.example
+*.log
+backups/
+
+# Console XLSX/CSV exports (generated locally and may contain personal data)
+exports/

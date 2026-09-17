@@ -1,0 +1,279 @@
+# AVIA_BOOKING_COMPOSE_V1
+name: avia-booking
+
+services:
+
+  # ============================================================
+  # PostgreSQL
+  # ============================================================
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in .env}
+
+      # --------------------------------------------------------
+      # Часовой пояс (CON-06)
+      # --------------------------------------------------------
+      #
+      # Схему и данные создаёт Flyway при старте приложения,
+      # поэтому SQL-файлы в контейнер не монтируются.
+      # Часовой пояс нужен только psql-скриптам из каталога sql/.
+      #
+      TZ: ${APP_TIME_ZONE:-Europe/Moscow}
+      PGTZ: ${APP_TIME_ZONE:-Europe/Moscow}
+
+    volumes:
+      # Храним PostgreSQL в named volume.
+      # При обычном docker compose down данные не удаляются.
+      - avia_booking_postgres:/var/lib/postgresql/data
+
+    ports:
+      # База доступна только с локального компьютера.
+      # Из внешней сети порт не публикуется.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+    security_opt:
+      - no-new-privileges:true
+
+    networks:
+      - app
+
+
+  # ============================================================
+  # CONNECTION INFO
+  # ============================================================
+  #
+  # Этот контейнер ничего не обслуживает.
+  #
+  # Он ждёт успешного healthcheck PostgreSQL,
+  # печатает параметры подключения и завершается.
+  #
+  connection-info:
+
+    image: alpine:3.22
+
+    restart: "no"
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    environment:
+
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        printf '\n'
+        printf '============================================================\n'
+        printf ' AVIA BOOKING DATABASE IS READY\n'
+        printf '============================================================\n'
+
+        printf ' PostgreSQL JDBC:  jdbc:postgresql://localhost:%s/%s?currentSchema=avia\n' \
+          "$$POSTGRES_PORT" \
+          "$$POSTGRES_DB"
+
+        printf ' PostgreSQL user:  %s\n' \
+          "$$POSTGRES_USER"
+
+        printf ' Run the app:      ./run.sh or .\\run.ps1\n'
+
+        printf '============================================================\n'
+        printf ' Passwords/secrets are not printed.\n'
+        printf '============================================================\n'
+        printf '\n'
+
+    networks:
+      - app
+
+
+  # ============================================================
+  # CONSOLE APP (optional)
+  # ============================================================
+  #
+  # Этот контейнер запускается ТОЛЬКО командой:
+  #
+  # docker compose --profile app run --rm app
+  #
+  # При обычном:
+  #
+  # docker compose up
+  #
+  # его вообще не существует. Консольному меню нужен терминал,
+  # поэтому используется run, а не up. JDK на компьютере не нужен.
+  #
+  app:
+
+    profiles:
+      - app
+
+    # Dockerfile для локального запуска не нужен.
+    #
+    # Debian-based Maven + Temurin 21 используется вместо Alpine,
+    # чтобы избежать проблем с Jansi/native libraries.
+    image: maven:3.9.11-eclipse-temurin-21
+
+    restart: "no"
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    stdin_open: true
+    tty: true
+
+    working_dir: /workspace
+
+    environment:
+
+      # --------------------------------------------------------
+      # Maven / JVM
+      # --------------------------------------------------------
+
+      MAVEN_OPTS: >-
+        -Dfile.encoding=UTF-8
+        -Dstdout.encoding=UTF-8
+        -Djansi.force=false
+        -Djansi.tmpdir=/workspace/target/jansi-tmp
+        -Dstyle.color=never
+        -XX:MaxRAMPercentage=75
+
+      # --------------------------------------------------------
+      # PostgreSQL
+      # --------------------------------------------------------
+
+      # Внутри сети compose база доступна по имени сервиса и порту 5432.
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}?currentSchema=avia
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in .env}
+
+      # --------------------------------------------------------
+      # Application
+      # --------------------------------------------------------
+
+      DEMO_DATA: ${DEMO_DATA:-true}
+
+      # Относительный путь: каталог /workspace/exports смонтирован в ./exports.
+      EXPORT_DIR: exports
+
+      APP_TIME_ZONE: ${APP_TIME_ZONE:-Europe/Moscow}
+
+    volumes:
+
+      # Исходники подключены только для чтения.
+      # Контейнер app не изменяет файлы проекта.
+      - ./pom.xml:/workspace/pom.xml:ro
+      - ./src:/workspace/src:ro
+
+      # Скомпилированные классы живут в отдельном volume.
+      - app_target:/workspace/target
+
+      # Maven зависимости скачиваются один раз.
+      - maven_cache:/root/.m2
+
+      # Выгрузки XLSX/CSV появляются на хосте в console-app/exports.
+      - ./exports:/workspace/exports
+
+    command:
+      - /bin/bash
+      - -euc
+      - |
+        mkdir -p /workspace/target/jansi-tmp
+        mkdir -p /workspace/target/tmp
+
+        export TMPDIR=/workspace/target/tmp
+
+        test -f /workspace/pom.xml || {
+          echo "ERROR: /workspace/pom.xml not found"
+          exit 78
+        }
+
+        test -d /workspace/src || {
+          echo "ERROR: /workspace/src not found"
+          exit 78
+        }
+
+        echo
+        echo "============================================================"
+        echo " AVIA BOOKING CONSOLE"
+        echo "============================================================"
+        echo " PostgreSQL JDBC:  $${DB_URL}"
+        echo " PostgreSQL user:  $${DB_USER}"
+        echo " Export folder:    console-app/exports"
+        echo "============================================================"
+        echo
+        echo " Compiling and starting the console app..."
+        echo
+
+        # Полное имя Maven-плагина используется вместо exec:java,
+        # чтобы запуск не зависел от plugin-prefix resolution.
+        exec mvn -f /workspace/pom.xml \
+          -B \
+          -ntp \
+          -q \
+          -DskipTests \
+          compile \
+          org.codehaus.mojo:exec-maven-plugin:3.5.1:java
+
+    tmpfs:
+      # noexec не задаётся, так как Maven/Jansi может загружать native library.
+      - /tmp:rw,nosuid,nodev,size=128m
+
+    cap_drop:
+      - ALL
+
+    # root без DAC_OVERRIDE не может писать в ./exports, если каталог
+    # уже создан пользователем хоста (Linux без Docker Desktop).
+    cap_add:
+      - DAC_OVERRIDE
+
+    security_opt:
+      - no-new-privileges:true
+
+    networks:
+      - app
+
+
+# ==============================================================
+# Named volumes
+# ==============================================================
+
+volumes:
+
+  # Данные PostgreSQL.
+  avia_booking_postgres:
+
+  # target консольного приложения, собранного внутри контейнера app.
+  app_target:
+
+  # Локальный Maven repository.
+  maven_cache:
+
+
+# ==============================================================
+# Networks
+# ==============================================================
+
+networks:
+
+  app:
+    driver: bridge
