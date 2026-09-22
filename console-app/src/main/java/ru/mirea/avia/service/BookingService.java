@@ -1,272 +1,190 @@
 package ru.mirea.avia.service;
 
-import ru.mirea.avia.domain.Booking;
-import ru.mirea.avia.domain.BookingStatus;
-import ru.mirea.avia.domain.FareClass;
-import ru.mirea.avia.domain.Flight;
-import ru.mirea.avia.domain.Passenger;
-import ru.mirea.avia.dto.BookingDtos.BookingChangeRequest;
-import ru.mirea.avia.dto.BookingDtos.BookingRequest;
-import ru.mirea.avia.dto.BookingDtos.BookingResponse;
-import ru.mirea.avia.dto.BookingDtos.PriceQuote;
-import ru.mirea.avia.error.DataAccessException;
-import ru.mirea.avia.error.EntityNotFoundException;
-import ru.mirea.avia.error.ErrorCode;
-import ru.mirea.avia.jdbc.Transactions;
+import ru.mirea.avia.exception.BusinessException;
+import ru.mirea.avia.exception.EntityNotFoundException;
+import ru.mirea.avia.model.Booking;
+import ru.mirea.avia.model.BookingStatus;
+import ru.mirea.avia.model.FareClass;
+import ru.mirea.avia.model.Flight;
+import ru.mirea.avia.model.Passenger;
 import ru.mirea.avia.repository.BookingRepository;
 import ru.mirea.avia.repository.FlightRepository;
 import ru.mirea.avia.repository.PassengerRepository;
 
-import java.time.Clock;
-import java.time.Duration;
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
+import java.sql.SQLException;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Pattern;
 
-/**
- * Прикладной сервис основной сущности «Бронирование» (FR-05…FR-11, FR-19…FR-21).
- *
- * <p>Правила BR-01…BR-10 проверяет {@link BookingValidator}, стоимость считает
- * {@link FareCalculator}, а сервис открывает транзакции и возвращает DTO. Перед операциями,
- * которые зависят от занятости мест и статусов, неоплаченные брони аннулируются (BR-09).</p>
- */
+/** Прикладная логика бронирований — основной сущности системы. */
 public class BookingService {
-    private static final int PNR_ATTEMPTS = 5;
-    private static final Pattern NUMERIC_ID = Pattern.compile("^\\d{1,18}$");
+    private static final Pattern SEAT = Pattern.compile("^[0-9]{1,2}[A-F]$");
 
     private final BookingRepository bookings;
     private final PassengerRepository passengers;
     private final FlightRepository flights;
-    private final BookingValidator validator;
-    private final FareCalculator fareCalculator;
-    private final PnrGenerator pnrGenerator;
-    private final BookingMapper mapper;
-    private final Transactions transactions;
-    private final Clock clock;
-    private final Duration expireAfter;
 
-    public BookingService(BookingRepository bookings, PassengerRepository passengers,
-                          FlightRepository flights, BookingValidator validator,
-                          FareCalculator fareCalculator, PnrGenerator pnrGenerator,
-                          BookingMapper mapper, Transactions transactions,
-                          Clock clock, Duration expireAfter) {
+    public BookingService(BookingRepository bookings, PassengerRepository passengers, FlightRepository flights) {
         this.bookings = bookings;
         this.passengers = passengers;
         this.flights = flights;
-        this.validator = validator;
-        this.fareCalculator = fareCalculator;
-        this.pnrGenerator = pnrGenerator;
-        this.mapper = mapper;
-        this.transactions = transactions;
-        this.clock = clock;
-        this.expireAfter = expireAfter;
     }
 
-    /** Создаёт бронь в статусе CREATED с рассчитанной стоимостью и уникальным PNR (UC-03). */
-    public BookingResponse create(BookingRequest request) {
-        // Просроченные брони должны освободить места до проверок BR-02 и BR-03.
-        expireOutdated();
-        return transactions.write(() -> {
-            Passenger passenger = requirePassenger(request.passengerId());
-            Flight flight = requireFlight(request.flightId());
-            String seat = validator.normalizeSeat(request.seatNumber());
-            validateFlight(passenger, flight);
-            validateSeat(flight, seat, null);
-            boolean baggage = normalizeBaggage(request.fareClass(), request.baggageIncluded());
-            PriceQuote quote = fareCalculator.calculate(flight.getBasePrice(), request.fareClass(), baggage);
-            Booking booking = new Booking(generateUniqueRef(), passenger, flight, seat, request.fareClass(),
-                    baggage, quote.total());
-            booking.onCreate(now());
-            return mapper.toResponse(bookings.insert(booking));
-        });
+    public Booking create(long passengerId, long flightId, String seatNumber, FareClass fareClass,
+                          BigDecimal price) throws SQLException {
+        Passenger passenger = requirePassenger(passengerId);
+        Flight flight = requireFlight(flightId);
+        String seat = normalizeSeat(seatNumber);
+        checkOpenForSale(flight);
+        checkSeatFree(flight, seat, null);
+        checkNoDuplicateBooking(passenger, flight);
+        checkPrice(price);
+        Booking booking = new Booking(passenger, flight, seat, fareClass, price);
+        return bookings.create(booking);
     }
 
-    /** Проверяет выбранный в диалоге рейс для пассажира: BR-05, BR-01, BR-02, BR-04. */
-    public void checkFlightAvailable(long passengerId, long flightId) {
-        transactions.read(() -> {
-            validateFlight(requirePassenger(passengerId), requireFlight(flightId));
-            return null;
-        });
+    public List<Booking> list() throws SQLException {
+        return bookings.findAll();
     }
 
-    /** Проверяет формат, ряд и занятость места (BR-03) и возвращает нормализованный номер. */
-    public String checkSeatAvailable(long flightId, String seatNumber) {
-        return transactions.read(() -> {
-            String seat = validator.normalizeSeat(seatNumber);
-            validateSeat(requireFlight(flightId), seat, null);
-            return seat;
-        });
+    public Booking get(long id) throws SQLException {
+        return bookings.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Бронирование с ID " + id + " не найдено"));
     }
 
-    /** Возвращает расчёт стоимости билета до сохранения брони (US-02, BR-06). */
-    public PriceQuote quote(long flightId, FareClass fareClass, boolean baggageIncluded) {
-        return transactions.read(() ->
-                fareCalculator.calculate(requireFlight(flightId).getBasePrice(), fareClass, baggageIncluded));
-    }
-
-    /** Возвращает все брони после аннулирования просроченных (BR-09). */
-    public List<BookingResponse> list() {
-        expireOutdated();
-        return transactions.read(() -> bookings.findAll().stream()
-                .map(mapper::toResponse)
-                .toList());
-    }
-
-    /** Возвращает бронь по ID. */
-    public BookingResponse get(long id) {
-        return transactions.read(() -> mapper.toResponse(require(id)));
-    }
-
-    /** Возвращает бронь по введённому значению: число — ID, иначе — номер PNR. */
-    public BookingResponse find(String idOrRef) {
-        expireOutdated();
-        String value = idOrRef == null ? "" : idOrRef.trim();
-        return transactions.read(() -> {
-            Booking booking = NUMERIC_ID.matcher(value).matches()
-                    ? require(Long.parseLong(value))
-                    : requireByRef(value);
-            return mapper.toResponse(booking);
-        });
-    }
-
-    /** Возвращает общее число броней. */
-    public long count() {
-        return transactions.read(bookings::count);
-    }
-
-    /** Возвращает число активных броней после аннулирования просроченных (BR-09). */
-    public long countActive() {
-        expireOutdated();
-        return transactions.read(bookings::countActive);
-    }
-
-    /** Проверяет, что бронь можно изменить: статус CREATED или PAID и рейс в продаже. */
-    public void checkCanModify(long id) {
-        transactions.read(() -> {
-            validator.checkCanModify(require(id));
-            return null;
-        });
-    }
-
-    /** Изменяет место, класс и багаж брони с пересчётом стоимости (FR-08, BR-03, BR-06). */
-    public BookingResponse update(long id, BookingChangeRequest request) {
-        expireOutdated();
-        return transactions.write(() -> {
-            Booking booking = require(id);
-            validator.checkCanModify(booking);
-            String seat = validator.normalizeSeat(request.seatNumber());
-            // Неизменённое место уже закреплено за этой бронью, поэтому повторная проверка не нужна.
-            if (!seat.equals(booking.getSeatNumber())) {
-                validateSeat(booking.getFlight(), seat, booking.getId());
-            }
-            boolean baggage = normalizeBaggage(request.fareClass(), request.baggageIncluded());
-            PriceQuote quote = fareCalculator.calculate(booking.getFlight().getBasePrice(), request.fareClass(),
-                    baggage);
-            booking.modify(seat, request.fareClass(), baggage, quote.total(), now());
-            return mapper.toResponse(bookings.update(booking));
-        });
-    }
-
-    /** Изменяет статус брони по матрице BR-07 с временными условиями и правилом BR-08. */
-    public BookingResponse changeStatus(long id, BookingStatus target) {
-        expireOutdated();
-        return transactions.write(() -> {
-            Booking booking = require(id);
-            validator.checkStatusChange(booking, target);
-            booking.changeStatus(target, now());
-            return mapper.toResponse(bookings.update(booking));
-        });
-    }
-
-    /** Проверяет возможность отмены до запроса подтверждения у оператора (BR-08). */
-    public void checkCanCancel(long id) {
-        transactions.read(() -> {
-            validator.checkCanCancel(require(id));
-            return null;
-        });
-    }
-
-    /** Отменяет бронь; место сразу возвращается в продажу (FR-10, BR-08). */
-    public BookingResponse cancel(long id) {
-        return changeStatus(id, BookingStatus.CANCELLED);
-    }
-
-    /** Аннулирует брони CREATED, не оплаченные в установленный срок, и возвращает их число (BR-09). */
-    public int expireOutdated() {
-        return transactions.write(() -> {
-            LocalDateTime now = now();
-            return bookings.expireCreatedBefore(now.minus(expireAfter), now);
-        });
-    }
-
-    /** Проверяет возможность удаления до запроса подтверждения у оператора (BR-10). */
-    public void checkCanDelete(long id) {
-        transactions.read(() -> {
-            validator.checkCanDelete(require(id));
-            return null;
-        });
-    }
-
-    /** Удаляет бронь физически — только в статусах CANCELLED и EXPIRED (FR-11, BR-10). */
-    public void delete(long id) {
-        transactions.write(() -> {
-            validator.checkCanDelete(require(id));
-            return bookings.deleteById(id);
-        });
-    }
-
-    /** Возвращает срок оплаты, после которого бронь CREATED аннулируется (BR-09). */
-    public Duration expireAfter() {
-        return expireAfter;
-    }
-
-    /** Возвращает номер места в каноническом виде: {@code 14c} → {@code 14C}. */
-    public String normalizeSeat(String seat) {
-        return validator.normalizeSeat(seat);
-    }
-
-    private Booking require(long id) {
-        return bookings.findById(id).orElseThrow(() -> EntityNotFoundException.booking(id));
-    }
-
-    private Booking requireByRef(String value) {
-        String ref = validator.normalizeRef(value);
-        return bookings.findByBookingRef(ref).orElseThrow(() -> EntityNotFoundException.bookingRef(ref));
-    }
-
-    private Passenger requirePassenger(long id) {
-        return passengers.findById(id).orElseThrow(() -> EntityNotFoundException.passenger(id));
-    }
-
-    private Flight requireFlight(long id) {
-        return flights.findById(id).orElseThrow(() -> EntityNotFoundException.flight(id));
-    }
-
-    private void validateFlight(Passenger passenger, Flight flight) {
-        validator.checkOpenForSale(flight);
-        validator.checkCapacity(flight, bookings.findActiveByFlightId(flight.getId()));
-        validator.checkNoDuplicate(passenger, flight);
-    }
-
-    private void validateSeat(Flight flight, String seat, Long exceptBookingId) {
-        validator.checkSeatInCabin(flight, seat);
-        validator.checkSeatFree(flight, seat, bookings.findActiveByFlightId(flight.getId()), exceptBookingId);
-    }
-
-    private String generateUniqueRef() {
-        for (int attempt = 0; attempt < PNR_ATTEMPTS; attempt++) {
-            String ref = pnrGenerator.generate();
-            if (!bookings.existsByBookingRef(ref)) return ref;
+    public Booking update(long id, String seatNumber, FareClass fareClass, BigDecimal price) throws SQLException {
+        Booking booking = get(id);
+        String seat = normalizeSeat(seatNumber);
+        if (!seat.equals(booking.getSeatNumber())) {
+            checkSeatFree(booking.getFlight(), seat, booking.getId());
         }
-        throw new DataAccessException(ErrorCode.E_502, "Failed to generate unique booking reference", null);
+        checkPrice(price);
+        booking.setSeatNumber(seat);
+        booking.setFareClass(fareClass);
+        booking.setPrice(price);
+        bookings.update(booking);
+        return booking;
     }
 
-    private LocalDateTime now() {
-        return LocalDateTime.now(clock);
+    public void delete(long id) throws SQLException {
+        if (!bookings.deleteById(id)) {
+            throw new EntityNotFoundException("Бронирование с ID " + id + " не найдено");
+        }
     }
 
-    private static boolean normalizeBaggage(FareClass fareClass, boolean requested) {
-        // В бизнес-классе багаж входит в тариф, поэтому признак всегда включён.
-        return requested || fareClass.isBaggageIncluded();
+    public Booking changeStatus(long id, BookingStatus target) throws SQLException {
+        Booking booking = get(id);
+        if (!booking.getStatus().canChangeTo(target)) {
+            throw new BusinessException("Переход " + booking.getStatus() + " -> " + target + " запрещён");
+        }
+        booking.setStatus(target);
+        bookings.update(booking);
+        return booking;
+    }
+
+    public List<Booking> searchByPassengerLastName(String text) throws SQLException {
+        if (text == null || text.isBlank()) throw new BusinessException("Фамилия не может быть пустой");
+        return bookings.searchByPassengerLastName(text.trim());
+    }
+
+    public List<Booking> searchByFlightNumber(String text) throws SQLException {
+        if (text == null || text.isBlank()) throw new BusinessException("Номер рейса не может быть пустым");
+        return bookings.searchByFlightNumber(text.trim());
+    }
+
+    public List<Booking> filterByStatus(BookingStatus status) throws SQLException {
+        return list().stream().filter(b -> b.getStatus() == status).toList();
+    }
+
+    public List<Booking> filterByFareClass(FareClass fareClass) throws SQLException {
+        return list().stream().filter(b -> b.getFareClass() == fareClass).toList();
+    }
+
+    public List<Booking> sortByPrice() throws SQLException {
+        return list().stream().sorted(Comparator.comparing(Booking::getPrice)).toList();
+    }
+
+    public List<Booking> sortByDepartureTime() throws SQLException {
+        return list().stream().sorted(Comparator.comparing(b -> b.getFlight().getDepartureTime())).toList();
+    }
+
+    /** Шесть показателей статистики системы. */
+    public Map<String, Long> statistics() throws SQLException {
+        List<Booking> all = list();
+        Map<String, Long> result = new LinkedHashMap<>();
+        result.put("Всего пассажиров", passengers.count());
+        result.put("Всего рейсов", (long) flights.findAll().size());
+        result.put("Всего бронирований", (long) all.size());
+        result.put("Активных броней", countByStatus(all, BookingStatus.CREATED)
+                + countByStatus(all, BookingStatus.PAID) + countByStatus(all, BookingStatus.CHECKED_IN));
+        result.put("Завершённых броней", countByStatus(all, BookingStatus.COMPLETED));
+        result.put("Отменённых броней", countByStatus(all, BookingStatus.CANCELLED));
+        return result;
+    }
+
+    private long countByStatus(List<Booking> all, BookingStatus status) {
+        return all.stream().filter(b -> b.getStatus() == status).count();
+    }
+
+    /** Проверяет формат номера места: ряд и буква A–F. */
+    private String normalizeSeat(String seatNumber) {
+        String normalized = seatNumber == null ? "" : seatNumber.trim().toUpperCase(Locale.ROOT);
+        if (!SEAT.matcher(normalized).matches()) {
+            throw new BusinessException("Номер места должен иметь вид 12A (ряд и буква A-F)");
+        }
+        return normalized;
+    }
+
+    /** Бизнес-правило: бронировать можно только рейс, открытый для продажи. */
+    private void checkOpenForSale(Flight flight) {
+        if (!flight.getStatus().isOpenForSale()) {
+            throw new BusinessException("Рейс " + flight.getFlightNumber() + " закрыт для продажи (статус «"
+                    + flight.getStatus().getTitle() + "»)");
+        }
+    }
+
+    /** Бизнес-правило: место не может быть занято другой активной бронью на этом рейсе. */
+    private void checkSeatFree(Flight flight, String seat, Long exceptBookingId) throws SQLException {
+        boolean taken = bookings.findAll().stream()
+                .filter(b -> b.getFlight().getId() == flight.getId())
+                .filter(b -> b.getStatus().occupiesSeat())
+                .filter(b -> exceptBookingId == null || b.getId() != exceptBookingId)
+                .anyMatch(b -> b.getSeatNumber().equals(seat));
+        if (taken) {
+            throw new BusinessException("Место " + seat + " на рейсе " + flight.getFlightNumber() + " уже занято");
+        }
+    }
+
+    /** Бизнес-правило: у пассажира не может быть двух активных броней на один рейс. */
+    private void checkNoDuplicateBooking(Passenger passenger, Flight flight) throws SQLException {
+        boolean duplicate = bookings.findAll().stream()
+                .filter(b -> b.getFlight().getId() == flight.getId())
+                .filter(b -> b.getPassenger().getId() == passenger.getId())
+                .anyMatch(b -> b.getStatus().occupiesSeat());
+        if (duplicate) {
+            throw new BusinessException("У пассажира " + passenger.getShortName()
+                    + " уже есть активная бронь на рейс " + flight.getFlightNumber());
+        }
+    }
+
+    /** Бизнес-правило: цена билета должна быть положительной. */
+    private void checkPrice(BigDecimal price) {
+        if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Стоимость билета должна быть больше нуля");
+        }
+    }
+
+    private Passenger requirePassenger(long id) throws SQLException {
+        return passengers.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Пассажир с ID " + id + " не найден"));
+    }
+
+    private Flight requireFlight(long id) throws SQLException {
+        return flights.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Рейс с ID " + id + " не найден"));
     }
 }

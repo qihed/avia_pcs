@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1002" viewBox="0 0 1000 1002" font-family="Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="900" viewBox="0 0 1000 900" font-family="Helvetica, Arial, sans-serif">
 <style>
  .h{font-size:17px;font-weight:bold;fill:#fff;text-anchor:middle}
  .hs{font-size:13px;fill:#dbe5f2;text-anchor:middle}
@@ -14,7 +14,9 @@
  .note{font-size:12.5px;fill:#333}
 </style>
 <rect width="100%" height="100%" fill="#ffffff"/>
-<text x="40" y="38" class="title">ИС «АВИА-БРОНЬ» — ER-диаграмма базы данных (схема avia, PostgreSQL 16)</text>
+<text x="40" y="38" class="title">ИС «АВИАБРОНИРОВАНИЕ» — ER-диаграмма базы данных (PostgreSQL 16)</text>
+
+<!-- passengers -->
 <g>
 <rect x="40" y="70" width="320" height="310" fill="#fff" stroke="#1f3a60" stroke-width="1.5"/>
 <rect x="40" y="70" width="320" height="50" fill="#1f3a60"/>
@@ -26,29 +28,23 @@
 <text x="242" y="137" class="t">BIGSERIAL</text>
 <rect x="41" y="146" width="318" height="26" fill="#f3f6fa"/>
 <line x1="40" y1="146" x2="360" y2="146" class="grid"/>
-<text x="48" y="163" class="k"></text>
 <text x="84" y="163" class="n">last_name</text>
 <text x="242" y="163" class="t">VARCHAR(60) NN</text>
 <line x1="40" y1="172" x2="360" y2="172" class="grid"/>
-<text x="48" y="189" class="k"></text>
 <text x="84" y="189" class="n">first_name</text>
 <text x="242" y="189" class="t">VARCHAR(60) NN</text>
 <rect x="41" y="198" width="318" height="26" fill="#f3f6fa"/>
 <line x1="40" y1="198" x2="360" y2="198" class="grid"/>
-<text x="48" y="215" class="k"></text>
 <text x="84" y="215" class="n">middle_name</text>
 <text x="242" y="215" class="t">VARCHAR(60)</text>
 <line x1="40" y1="224" x2="360" y2="224" class="grid"/>
-<text x="48" y="241" class="k"></text>
 <text x="84" y="241" class="n">birth_date</text>
 <text x="242" y="241" class="t">DATE NN</text>
 <rect x="41" y="250" width="318" height="26" fill="#f3f6fa"/>
 <line x1="40" y1="250" x2="360" y2="250" class="grid"/>
-<text x="48" y="267" class="k">UQ¹</text>
 <text x="84" y="267" class="n">document_type</text>
 <text x="242" y="267" class="t">VARCHAR(24) NN</text>
 <line x1="40" y1="276" x2="360" y2="276" class="grid"/>
-<text x="48" y="293" class="k">UQ¹</text>
 <text x="84" y="293" class="n">document_number</text>
 <text x="242" y="293" class="t">VARCHAR(20) NN</text>
 <rect x="41" y="302" width="318" height="26" fill="#f3f6fa"/>
@@ -57,17 +53,17 @@
 <text x="84" y="319" class="n">email</text>
 <text x="242" y="319" class="t">VARCHAR(120) NN</text>
 <line x1="40" y1="328" x2="360" y2="328" class="grid"/>
-<text x="48" y="345" class="k"></text>
 <text x="84" y="345" class="n">phone</text>
 <text x="242" y="345" class="t">VARCHAR(20) NN</text>
 <rect x="41" y="354" width="318" height="26" fill="#f3f6fa"/>
 <line x1="40" y1="354" x2="360" y2="354" class="grid"/>
-<text x="48" y="371" class="k"></text>
 <text x="84" y="371" class="n">created_at</text>
 <text x="242" y="371" class="t">TIMESTAMP NN</text>
 <line x1="78" y1="120" x2="78" y2="380" class="grid"/>
 <line x1="236" y1="120" x2="236" y2="380" class="grid"/>
 </g>
+
+<!-- flights -->
 <g>
 <rect x="640" y="70" width="320" height="336" fill="#fff" stroke="#1f3a60" stroke-width="1.5"/>
 <rect x="640" y="70" width="320" height="50" fill="#1f3a60"/>
@@ -79,54 +75,46 @@
 <text x="842" y="137" class="t">BIGSERIAL</text>
 <rect x="641" y="146" width="318" height="26" fill="#f3f6fa"/>
 <line x1="640" y1="146" x2="960" y2="146" class="grid"/>
-<text x="648" y="163" class="k">UQ²</text>
 <text x="684" y="163" class="n">flight_number</text>
 <text x="842" y="163" class="t">VARCHAR(8) NN</text>
 <line x1="640" y1="172" x2="960" y2="172" class="grid"/>
-<text x="648" y="189" class="k"></text>
 <text x="684" y="189" class="n">airline</text>
 <text x="842" y="189" class="t">VARCHAR(60) NN</text>
 <rect x="641" y="198" width="318" height="26" fill="#f3f6fa"/>
 <line x1="640" y1="198" x2="960" y2="198" class="grid"/>
-<text x="648" y="215" class="k"></text>
 <text x="684" y="215" class="n">departure_airport</text>
 <text x="842" y="215" class="t">CHAR(3) NN</text>
 <line x1="640" y1="224" x2="960" y2="224" class="grid"/>
-<text x="648" y="241" class="k"></text>
 <text x="684" y="241" class="n">arrival_airport</text>
 <text x="842" y="241" class="t">CHAR(3) NN</text>
 <rect x="641" y="250" width="318" height="26" fill="#f3f6fa"/>
 <line x1="640" y1="250" x2="960" y2="250" class="grid"/>
-<text x="648" y="267" class="k">UQ²</text>
 <text x="684" y="267" class="n">departure_time</text>
 <text x="842" y="267" class="t">TIMESTAMP NN</text>
 <line x1="640" y1="276" x2="960" y2="276" class="grid"/>
-<text x="648" y="293" class="k"></text>
 <text x="684" y="293" class="n">arrival_time</text>
 <text x="842" y="293" class="t">TIMESTAMP NN</text>
 <rect x="641" y="302" width="318" height="26" fill="#f3f6fa"/>
 <line x1="640" y1="302" x2="960" y2="302" class="grid"/>
-<text x="648" y="319" class="k"></text>
 <text x="684" y="319" class="n">aircraft_type</text>
 <text x="842" y="319" class="t">VARCHAR(40) NN</text>
 <line x1="640" y1="328" x2="960" y2="328" class="grid"/>
-<text x="648" y="345" class="k"></text>
 <text x="684" y="345" class="n">total_seats</text>
 <text x="842" y="345" class="t">INTEGER NN</text>
 <rect x="641" y="354" width="318" height="26" fill="#f3f6fa"/>
 <line x1="640" y1="354" x2="960" y2="354" class="grid"/>
-<text x="648" y="371" class="k"></text>
 <text x="684" y="371" class="n">base_price</text>
 <text x="842" y="371" class="t">NUMERIC(10,2) NN</text>
 <line x1="640" y1="380" x2="960" y2="380" class="grid"/>
-<text x="648" y="397" class="k"></text>
 <text x="684" y="397" class="n">status</text>
 <text x="842" y="397" class="t">VARCHAR(16) NN</text>
 <line x1="678" y1="120" x2="678" y2="406" class="grid"/>
 <line x1="836" y1="120" x2="836" y2="406" class="grid"/>
 </g>
+
+<!-- bookings -->
 <g>
-<rect x="340" y="470" width="320" height="336" fill="#fff" stroke="#1f3a60" stroke-width="1.5"/>
+<rect x="340" y="470" width="320" height="258" fill="#fff" stroke="#1f3a60" stroke-width="1.5"/>
 <rect x="340" y="470" width="320" height="50" fill="#2b5797"/>
 <text x="500.0" y="492" class="h">bookings</text>
 <text x="500.0" y="510" class="hs">Бронирования — основная сущность</text>
@@ -136,72 +124,56 @@
 <text x="542" y="537" class="t">BIGSERIAL</text>
 <rect x="341" y="546" width="318" height="26" fill="#f3f6fa"/>
 <line x1="340" y1="546" x2="660" y2="546" class="grid"/>
-<text x="348" y="563" class="k">UQ</text>
-<text x="384" y="563" class="n">booking_ref</text>
-<text x="542" y="563" class="t">CHAR(6) NN</text>
+<text x="348" y="563" class="k">FK</text>
+<text x="384" y="563" class="n b">passenger_id</text>
+<text x="542" y="563" class="t">BIGINT NN</text>
 <line x1="340" y1="572" x2="660" y2="572" class="grid"/>
 <text x="348" y="589" class="k">FK</text>
-<text x="384" y="589" class="n b">passenger_id</text>
+<text x="384" y="589" class="n b">flight_id</text>
 <text x="542" y="589" class="t">BIGINT NN</text>
 <rect x="341" y="598" width="318" height="26" fill="#f3f6fa"/>
 <line x1="340" y1="598" x2="660" y2="598" class="grid"/>
-<text x="348" y="615" class="k">FK</text>
-<text x="384" y="615" class="n b">flight_id</text>
-<text x="542" y="615" class="t">BIGINT NN</text>
+<text x="384" y="615" class="n">seat_number</text>
+<text x="542" y="615" class="t">VARCHAR(4) NN</text>
 <line x1="340" y1="624" x2="660" y2="624" class="grid"/>
-<text x="348" y="641" class="k"></text>
-<text x="384" y="641" class="n">seat_number</text>
-<text x="542" y="641" class="t">VARCHAR(4) NN</text>
+<text x="384" y="641" class="n">fare_class</text>
+<text x="542" y="641" class="t">VARCHAR(10) NN</text>
 <rect x="341" y="650" width="318" height="26" fill="#f3f6fa"/>
 <line x1="340" y1="650" x2="660" y2="650" class="grid"/>
-<text x="348" y="667" class="k"></text>
-<text x="384" y="667" class="n">fare_class</text>
-<text x="542" y="667" class="t">VARCHAR(10) NN</text>
+<text x="384" y="667" class="n">price</text>
+<text x="542" y="667" class="t">NUMERIC(10,2) NN</text>
 <line x1="340" y1="676" x2="660" y2="676" class="grid"/>
-<text x="348" y="693" class="k"></text>
-<text x="384" y="693" class="n">baggage_included</text>
-<text x="542" y="693" class="t">BOOLEAN NN</text>
+<text x="384" y="693" class="n">status</text>
+<text x="542" y="693" class="t">VARCHAR(12) NN</text>
 <rect x="341" y="702" width="318" height="26" fill="#f3f6fa"/>
 <line x1="340" y1="702" x2="660" y2="702" class="grid"/>
-<text x="348" y="719" class="k"></text>
-<text x="384" y="719" class="n">price</text>
-<text x="542" y="719" class="t">NUMERIC(10,2) NN</text>
-<line x1="340" y1="728" x2="660" y2="728" class="grid"/>
-<text x="348" y="745" class="k"></text>
-<text x="384" y="745" class="n">status</text>
-<text x="542" y="745" class="t">VARCHAR(12) NN</text>
-<rect x="341" y="754" width="318" height="26" fill="#f3f6fa"/>
-<line x1="340" y1="754" x2="660" y2="754" class="grid"/>
-<text x="348" y="771" class="k"></text>
-<text x="384" y="771" class="n">created_at</text>
-<text x="542" y="771" class="t">TIMESTAMP NN</text>
-<line x1="340" y1="780" x2="660" y2="780" class="grid"/>
-<text x="348" y="797" class="k"></text>
-<text x="384" y="797" class="n">updated_at</text>
-<text x="542" y="797" class="t">TIMESTAMP NN</text>
-<line x1="378" y1="520" x2="378" y2="806" class="grid"/>
-<line x1="536" y1="520" x2="536" y2="806" class="grid"/>
+<text x="384" y="719" class="n">created_at</text>
+<text x="542" y="719" class="t">TIMESTAMP NN</text>
+<line x1="378" y1="520" x2="378" y2="728" class="grid"/>
+<line x1="536" y1="520" x2="536" y2="728" class="grid"/>
 </g>
-<path class="rel" d="M40,133.0 H18 V585.0 H340"/>
+
+<!-- passengers 1 -> N bookings (passenger_id) -->
+<path class="rel" d="M40,133.0 H18 V559.0 H340"/>
 <line class="rel" x1="30" y1="125.0" x2="30" y2="141.0"/><line class="rel" x1="24" y1="125.0" x2="24" y2="141.0"/>
-<path class="rel" d="M326,585.0 L340,577.0 M326,585.0 L340,593.0"/><line class="rel" x1="320" y1="577.0" x2="320" y2="593.0"/>
+<path class="rel" d="M326,559.0 L340,551.0 M326,559.0 L340,567.0"/><line class="rel" x1="320" y1="551.0" x2="320" y2="567.0"/>
 <text x="26" y="121.0" class="card">1</text>
-<text x="310" y="573.0" class="card">N</text>
-<text x="50" y="559.0" class="lbl">fk_bookings_passenger</text>
-<text x="50" y="575.0" class="lbl">ON DELETE RESTRICT</text>
-<path class="rel" d="M960,133.0 H982 V611.0 H660"/>
+<text x="310" y="547.0" class="card">N</text>
+<text x="50" y="531.0" class="lbl">fk_bookings_passenger</text>
+<text x="50" y="547.0" class="lbl">ON DELETE RESTRICT</text>
+
+<!-- flights 1 -> N bookings (flight_id) -->
+<path class="rel" d="M960,133.0 H982 V585.0 H660"/>
 <line class="rel" x1="970" y1="125.0" x2="970" y2="141.0"/><line class="rel" x1="976" y1="125.0" x2="976" y2="141.0"/>
-<path class="rel" d="M674,611.0 L660,603.0 M674,611.0 L660,619.0"/><line class="rel" x1="680" y1="603.0" x2="680" y2="619.0"/>
+<path class="rel" d="M674,585.0 L660,577.0 M674,585.0 L660,593.0"/><line class="rel" x1="680" y1="577.0" x2="680" y2="593.0"/>
 <text x="966" y="121.0" class="card">1</text>
-<text x="682" y="599.0" class="card">N</text>
-<text x="700" y="637.0" class="lbl">fk_bookings_flight</text>
-<text x="700" y="653.0" class="lbl">ON DELETE RESTRICT</text>
-<rect x="30" y="822" width="940" height="160" fill="#f3f6fa" stroke="#c7d0dd"/>
-<text x="44" y="846" class="note">PK — первичный ключ, FK — внешний ключ, UQ — уникальность, NN — NOT NULL.</text>
-<text x="44" y="866" class="note">UQ¹ — пара (document_type, document_number) уникальна; UQ² — пара (flight_number, departure_time) уникальна.</text>
-<text x="44" y="886" class="note">Частичные уникальные индексы (только для броней в статусах, отличных от CANCELLED и EXPIRED):</text>
-<text x="64" y="906" class="note">uq_bookings_flight_seat_active (flight_id, seat_number) — правило BR-03;</text>
-<text x="64" y="926" class="note">uq_bookings_flight_passenger_active (flight_id, passenger_id) — правило BR-04.</text>
-<text x="44" y="946" class="note">CHECK: место ^[0-9]{1,2}[A-F]$, PNR ^[A-Z0-9]{6}$, price &gt; 0, статусы и классы — значения перечислений,</text>
-<text x="64" y="966" class="note">arrival_time &gt; departure_time, departure_airport &lt;&gt; arrival_airport, total_seats 1..600, base_price &gt; 0, e-mail.</text>
+<text x="682" y="573.0" class="card">N</text>
+<text x="700" y="607.0" class="lbl">fk_bookings_flight</text>
+<text x="700" y="623.0" class="lbl">ON DELETE RESTRICT</text>
+
+<rect x="30" y="758" width="940" height="110" fill="#f3f6fa" stroke="#c7d0dd"/>
+<text x="44" y="782" class="note">PK — первичный ключ, FK — внешний ключ, UQ — уникальность, NN — NOT NULL.</text>
+<text x="44" y="802" class="note">UQ — email пассажира уникален.</text>
+<text x="44" y="822" class="note">CHECK: место ^[0-9]{1,2}[A-F]$, price &gt; 0, статус/класс/тип документа — значения перечислений,</text>
+<text x="64" y="842" class="note">arrival_time &gt; departure_time, departure_airport &lt;&gt; arrival_airport, total_seats &gt; 0, base_price &gt; 0.</text>
 </svg>
