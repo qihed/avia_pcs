@@ -58,7 +58,3 @@ CREATE TABLE bookings (
     CONSTRAINT chk_bookings_status      CHECK (status IN
         ('CREATED', 'PAID', 'CHECKED_IN', 'COMPLETED', 'CANCELLED'))
 );
-
-CREATE INDEX idx_bookings_status    ON bookings (status);
-CREATE INDEX idx_bookings_flight    ON bookings (flight_id);
-CREATE INDEX idx_bookings_passenger ON bookings (passenger_id);
