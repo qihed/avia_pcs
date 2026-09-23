@@ -43,19 +43,21 @@ src/main/java/ru/mirea/avia/
 
 ## Запуск
 
-1. Создать PostgreSQL-базу `avia_booking`.
-2. Выполнить `console-app/sql/schema.sql`, затем `console-app/sql/data.sql`.
-3. При необходимости задать переменные окружения:
-   - `DB_URL` (по умолчанию `jdbc:postgresql://localhost:5432/avia_booking`)
-   - `DB_USER` (по умолчанию `avia_app`)
-   - `DB_PASSWORD` (по умолчанию `avia_app_password`)
-4. Запустить из каталога `console-app`:
-
 ```bash
-mvn compile exec:java
+docker compose run --rm app
 ```
 
-Экспорт создаётся в `console-app/exports/bookings.xlsx`.
+Другие команды (из каталога `console-app`):
+
+```bash
+docker compose down                      # остановить базу, данные сохраняются
+docker compose down -v                   # удалить базу вместе с данными
+docker compose --profile app down -v     # удалить всё, включая кэш Maven
+
+# вернуть демо-данные, не удаляя базу
+docker compose exec -T db sh -c 'psql -q -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < sql/schema.sql
+docker compose exec -T db sh -c 'psql -q -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < sql/data.sql
+```
 
 ## Демонстрационные данные
 

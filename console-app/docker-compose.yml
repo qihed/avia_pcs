@@ -1,0 +1,49 @@
+name: avia-pcs
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      PGPORT: ${DB_CONTAINER_PORT}
+      TZ: ${TIME_ZONE}
+    ports:
+      - "127.0.0.1:${DB_PORT}:${DB_CONTAINER_PORT}"
+    volumes:
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./sql/data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  app:
+    image: maven:3.9.11-eclipse-temurin-21
+    profiles: [app]
+    depends_on:
+      db:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+    working_dir: /app
+    environment:
+      DB_URL: jdbc:postgresql://db:${DB_CONTAINER_PORT}/${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      TZ: ${TIME_ZONE}
+    volumes:
+      - ./pom.xml:/app/pom.xml:ro
+      - ./src:/app/src:ro
+      - app-target:/app/target
+      - maven-cache:/root/.m2
+      - ./exports:/app/exports
+    command: ["mvn", "-q", "compile", "exec:java"]
+
+volumes:
+  db-data:
+  app-target:
+  maven-cache:
