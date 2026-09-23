@@ -13,6 +13,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -112,6 +114,19 @@ public class JdbcBookingRepository implements BookingRepository {
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setLong(1, id);
             return statement.executeUpdate() > 0;
+        }
+    }
+
+    @Override
+    public int expireCreatedBefore(LocalDateTime threshold) throws SQLException {
+        // Один UPDATE на все просроченные брони, статусы передаются параметрами.
+        String sql = "UPDATE bookings SET status = ? WHERE status = ? AND created_at < ?";
+        try (Connection connection = database.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, BookingStatus.EXPIRED.name());
+            statement.setString(2, BookingStatus.CREATED.name());
+            statement.setTimestamp(3, Timestamp.valueOf(threshold));
+            return statement.executeUpdate();
         }
     }
 

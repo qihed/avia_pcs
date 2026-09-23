@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Scanner;
 import java.util.function.Function;
 
@@ -87,6 +88,30 @@ public class Input {
             int number = integer(prompt);
             if (number >= 1 && number <= options.size()) return options.get(number - 1);
             System.out.println("Ошибка: выберите пункт от 1 до " + options.size() + ".");
+        }
+    }
+
+    /** Как {@link #choice}, но с пунктом «0. Назад»: при выборе 0 возвращает {@code null}. */
+    public <E> E choiceOrBack(String prompt, List<E> options, Function<E, String> title) {
+        for (int i = 0; i < options.size(); i++) {
+            System.out.println((i + 1) + ". " + title.apply(options.get(i)));
+        }
+        System.out.println("0. Назад");
+        while (true) {
+            int number = integer(prompt);
+            if (number == 0) return null;
+            if (number >= 1 && number <= options.size()) return options.get(number - 1);
+            System.out.println("Ошибка: выберите пункт от 0 до " + options.size() + ".");
+        }
+    }
+
+    /** Подтверждение необратимой операции вводом «да» / «нет»; вопрос повторяется до ответа. */
+    public boolean confirm(String prompt) {
+        while (true) {
+            String answer = text(prompt + " (да/нет)").toLowerCase(Locale.ROOT);
+            if (answer.equals("да") || answer.equals("д")) return true;
+            if (answer.equals("нет") || answer.equals("н")) return false;
+            System.out.println("Ошибка: введите «да» или «нет».");
         }
     }
 }

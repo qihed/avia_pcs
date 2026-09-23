@@ -56,5 +56,5 @@ CREATE TABLE bookings (
     CONSTRAINT chk_bookings_seat_format CHECK (seat_number ~ '^[0-9]{1,2}[A-F]$'),
     CONSTRAINT chk_bookings_fare_class  CHECK (fare_class IN ('ECONOMY', 'COMFORT', 'BUSINESS')),
     CONSTRAINT chk_bookings_status      CHECK (status IN
-        ('CREATED', 'PAID', 'CHECKED_IN', 'COMPLETED', 'CANCELLED'))
+        ('CREATED', 'PAID', 'CHECKED_IN', 'COMPLETED', 'CANCELLED', 'EXPIRED'))
 );

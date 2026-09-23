@@ -3,6 +3,7 @@ package ru.mirea.avia.repository;
 import ru.mirea.avia.model.Booking;
 
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,4 +16,6 @@ public interface BookingRepository {
     boolean deleteById(long id) throws SQLException;
     List<Booking> searchByPassengerLastName(String text) throws SQLException;
     List<Booking> searchByFlightNumber(String text) throws SQLException;
+
+    int expireCreatedBefore(LocalDateTime threshold) throws SQLException;
 }
