@@ -13,6 +13,8 @@ import ru.mirea.avia.repository.PassengerRepository;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,6 +25,8 @@ import java.util.regex.Pattern;
 /** Прикладная логика бронирований — основной сущности системы. */
 public class BookingService {
     private static final Pattern SEAT = Pattern.compile("^[0-9]{1,2}[A-F]$");
+    private static final Duration CANCEL_LIMIT = Duration.ofHours(2);
+    private static final Duration EXPIRE_AFTER = Duration.ofMinutes(30);
 
     private final BookingRepository bookings;
     private final PassengerRepository passengers;
@@ -35,7 +39,9 @@ public class BookingService {
     }
 
     public Booking create(long passengerId, long flightId, String seatNumber, FareClass fareClass,
-                          BigDecimal price) throws SQLException {
+                        BigDecimal price) throws SQLException {
+        // Перед созданием брони просроченные аннулируются, их места снова свободны.
+        expireOutdated();
         Passenger passenger = requirePassenger(passengerId);
         Flight flight = requireFlight(flightId);
         String seat = normalizeSeat(seatNumber);
@@ -47,21 +53,24 @@ public class BookingService {
         return bookings.create(booking);
     }
 
+    /** Все брони; перед выводом просроченные аннулируются, чтобы статусы были актуальны. */
     public List<Booking> list() throws SQLException {
+        expireOutdated();
         return bookings.findAll();
     }
 
+    /** Бронь по ID; бронь, которая к этому моменту просрочена, уже будет в статусе EXPIRED. */
     public Booking get(long id) throws SQLException {
+        expireOutdated();
         return bookings.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Бронирование с ID " + id + " не найдено"));
     }
 
+    /** Смена места, класса и стоимости с повторной проверкой занятости места. */
     public Booking update(long id, String seatNumber, FareClass fareClass, BigDecimal price) throws SQLException {
-        Booking booking = get(id);
-        String seat = normalizeSeat(seatNumber);
-        if (!seat.equals(booking.getSeatNumber())) {
-            checkSeatFree(booking.getFlight(), seat, booking.getId());
-        }
+        // Правила проверяются заново: между вводом и сохранением данные могли измениться.
+        Booking booking = requireEditable(id);
+        String seat = validateSeatChange(booking, seatNumber);
         checkPrice(price);
         booking.setSeatNumber(seat);
         booking.setFareClass(fareClass);
@@ -70,20 +79,86 @@ public class BookingService {
         return booking;
     }
 
+    /** Возвращает бронь, если её можно изменить: статус CREATED или PAID и рейс ещё открыт для продажи. */
+    public Booking requireEditable(long id) throws SQLException {
+        Booking booking = get(id);
+        BookingStatus status = booking.getStatus();
+        if (status != BookingStatus.CREATED && status != BookingStatus.PAID) {
+            throw new BusinessException("Изменить можно только бронь в статусе «Создано» или «Оплачено»"
+                    + " (текущий статус: «" + status.getTitle() + "»)");
+        }
+        checkOpenForSale(booking.getFlight());
+        return booking;
+    }
+
+    /** Проверяет новое место сразу после ввода, до вопросов о классе и цене; возвращает его в верхнем регистре. */
+    public String checkSeatChange(long id, String seatNumber) throws SQLException {
+        return validateSeatChange(requireEditable(id), seatNumber);
+    }
+
+    /** Физическое удаление только отменённой или просроченной брони. */
     public void delete(long id) throws SQLException {
+        requireDeletable(id);
         if (!bookings.deleteById(id)) {
             throw new EntityNotFoundException("Бронирование с ID " + id + " не найдено");
         }
     }
 
-    public Booking changeStatus(long id, BookingStatus target) throws SQLException {
+    /** Возвращает бронь, если её можно удалить; UI вызывает до запроса подтверждения. */
+    public Booking requireDeletable(long id) throws SQLException {
         Booking booking = get(id);
-        if (!booking.getStatus().canChangeTo(target)) {
-            throw new BusinessException("Переход " + booking.getStatus() + " -> " + target + " запрещён");
+        if (booking.getStatus() != BookingStatus.CANCELLED && booking.getStatus() != BookingStatus.EXPIRED) {
+            throw new BusinessException("Удалить можно только отменённую или просроченную бронь");
+        }
+        return booking;
+    }
+
+    /** Перевод брони в новый статус по матрице переходов. */
+    public Booking changeStatus(long id, BookingStatus target) throws SQLException {
+        // Отмена через смену статуса проходит те же проверки, что и пункт «Отменить бронь».
+        if (target == BookingStatus.CANCELLED) {
+            return cancel(id);
+        }
+        Booking booking = get(id);
+        checkTransition(booking, target);
+        if (target == BookingStatus.EXPIRED) {
+            throw new BusinessException("Статус «" + target.getTitle() + "» устанавливается системой автоматически");
         }
         booking.setStatus(target);
         bookings.update(booking);
         return booking;
+    }
+
+    /** Отмена брони; место сразу возвращается в продажу. */
+    public Booking cancel(long id) throws SQLException {
+        Booking booking = requireCancellable(id);
+        booking.setStatus(BookingStatus.CANCELLED);
+        bookings.update(booking);
+        return booking;
+    }
+
+    /** Возвращает бронь, если её можно отменить; UI вызывает до запроса подтверждения. */
+    public Booking requireCancellable(long id) throws SQLException {
+        Booking booking = get(id);
+        if (!booking.getStatus().canChangeTo(BookingStatus.CANCELLED)) {
+            throw new BusinessException("Отменить можно только бронь в статусе «Создано» или «Оплачено»"
+                    + " (текущий статус: «" + booking.getStatus().getTitle() + "»)");
+        }
+        LocalDateTime departure = booking.getFlight().getDepartureTime();
+        LocalDateTime now = LocalDateTime.now();
+        if (!now.isBefore(departure)) {
+            throw new BusinessException("Отмена невозможна: рейс " + booking.getFlight().getFlightNumber()
+                    + " уже вылетел");
+        }
+        if (now.isAfter(departure.minus(CANCEL_LIMIT))) {
+            throw new BusinessException("Отмена невозможна: до вылета менее 2 часов");
+        }
+        return booking;
+    }
+
+    /** Брони CREATED без оплаты дольше 30 минут переводятся в EXPIRED; возвращает их число. */
+    public int expireOutdated() throws SQLException {
+        return bookings.expireCreatedBefore(LocalDateTime.now().minus(EXPIRE_AFTER));
     }
 
     public List<Booking> searchByPassengerLastName(String text) throws SQLException {
@@ -128,6 +203,22 @@ public class BookingService {
 
     private long countByStatus(List<Booking> all, BookingStatus status) {
         return all.stream().filter(b -> b.getStatus() == status).count();
+    }
+
+    /** Переход должен быть разрешён матрицей статусов. */
+    private void checkTransition(Booking booking, BookingStatus target) {
+        if (!booking.getStatus().canChangeTo(target)) {
+            throw new BusinessException("Переход " + booking.getStatus() + " → " + target + " недопустим");
+        }
+    }
+
+    /** При изменении брони новое место не должно быть занято другой активной бронью этого рейса. */
+    private String validateSeatChange(Booking booking, String seatNumber) throws SQLException {
+        String seat = normalizeSeat(seatNumber);
+        if (!seat.equals(booking.getSeatNumber())) {
+            checkSeatFree(booking.getFlight(), seat, booking.getId());
+        }
+        return seat;
     }
 
     /** Проверяет формат номера места: ряд и буква A–F. */
