@@ -54,6 +54,8 @@ public class ConsoleUI {
         });
         while (true) {
             System.out.println("""
+                    
+                    
                     ========================================
                     СИСТЕМА БРОНИРОВАНИЯ АВИАБИЛЕТОВ
                     ========================================
@@ -280,7 +282,13 @@ public class ConsoleUI {
     }
 
     private void exportExcel() throws SQLException, IOException {
-        Path path = exporter.export(bookings.list(), Path.of("exports", "bookings.xlsx"));
+        // Добавляем дату и время, чтобы новый экспорт не перезаписывал предыдущий файл.
+        String timestamp = LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+        Path filePath = Path.of("exports", "bookings_" + timestamp + ".xlsx");
+
+        // Получаем бронирования из БД через сервис и передаём их ExcelExporter.
+        Path path = exporter.export(bookings.list(), filePath);
         System.out.println("Файл создан: " + path.toAbsolutePath());
     }
 
