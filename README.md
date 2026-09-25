@@ -44,6 +44,7 @@ src/main/java/ru/mirea/avia/
 ## Запуск
 
 ```bash
+cd console-app
 docker compose run --rm app
 ```
 
