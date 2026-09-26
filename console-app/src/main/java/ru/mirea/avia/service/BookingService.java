@@ -205,7 +205,7 @@ public class BookingService {
         return all.stream().filter(b -> b.getStatus() == status).count();
     }
 
-    /** Переход должен быть разрешён матрицей статусов. */
+    /** Бизнес-правило: Переход должен быть разрешён матрицей статусов. */
     private void checkTransition(Booking booking, BookingStatus target) {
         if (!booking.getStatus().canChangeTo(target)) {
             throw new BusinessException("Переход " + booking.getStatus() + " → " + target + " недопустим");
