@@ -160,9 +160,9 @@ public class ConsoleUI {
     }
 
     private void createPassenger() throws SQLException {
-        String lastName = input.required("Фамилия");
-        String firstName = input.required("Имя");
-        String middleName = input.text("Отчество (Enter - нет)");
+        String lastName = input.requiredMaxLength("Фамилия", 60);
+        String firstName = input.requiredMaxLength("Имя", 60);
+        String middleName = input.requiredMaxLength("Отчество", 60);
         var birthDate = input.date("Дата рождения");
         DocumentType type = input.choice("Тип документа", DOCUMENT_TYPES, DocumentType::getTitle);
         String documentNumber = input.required("Номер документа");

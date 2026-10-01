@@ -27,7 +27,18 @@ public class Input {
             System.out.println("Ошибка: значение не должно быть пустым.");
         }
     }
+    public String requiredMaxLength(String prompt, int maxLength) {
+    while (true) {
+        String value = required(prompt);
 
+        if (value.length() > maxLength) {
+            System.out.println("Ошибка: нельзя вводить больше 60 символов.");
+            continue;
+        }
+
+        return value;
+    }
+}
     public int integer(String prompt) {
         while (true) {
             try {

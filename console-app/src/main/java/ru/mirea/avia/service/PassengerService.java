@@ -17,7 +17,7 @@ public class PassengerService {
     public PassengerService(PassengerRepository repository) {
         this.repository = repository;
     }
-
+    
     public Passenger create(String lastName, String firstName, String middleName, LocalDate birthDate,
                             DocumentType documentType, String documentNumber, String email,
                             String phone) throws SQLException {
@@ -41,6 +41,9 @@ public class PassengerService {
     }
 
     private void validate(Passenger passenger) {
+        if (passenger.getFullName() != null && passenger.getFullName().length() > 60) {
+            throw new IllegalArgumentException("ФИО не должно превышать 60 символов!");
+        }
         if (passenger.getLastName() == null || passenger.getLastName().isBlank()) {
             throw new BusinessException("Фамилия обязательна");
         }
