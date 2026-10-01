@@ -41,8 +41,16 @@ public class PassengerService {
     }
 
     private void validate(Passenger passenger) {
-        if (passenger.getFullName() != null && passenger.getFullName().length() > 60) {
-            throw new IllegalArgumentException("ФИО не должно превышать 60 символов!");
+        if (passenger.getLastName() != null && passenger.getLastName().length() > 60) {
+            throw new BusinessException("Фамилия не должна превышать 60 символов.");
+        }
+
+        if (passenger.getFirstName() != null && passenger.getFirstName().length() > 60) {
+            throw new BusinessException("Имя не должно превышать 60 символов.");
+        }
+
+        if (passenger.getMiddleName() != null && passenger.getMiddleName().length() > 60) {
+            throw new BusinessException("Отчество не должно превышать 60 символов.");
         }
         if (passenger.getLastName() == null || passenger.getLastName().isBlank()) {
             throw new BusinessException("Фамилия обязательна");
