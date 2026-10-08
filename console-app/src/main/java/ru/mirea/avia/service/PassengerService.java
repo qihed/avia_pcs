@@ -5,6 +5,7 @@ import ru.mirea.avia.exception.EntityNotFoundException;
 import ru.mirea.avia.model.DocumentType;
 import ru.mirea.avia.model.Passenger;
 import ru.mirea.avia.repository.PassengerRepository;
+import ru.mirea.avia.util.Validators;
 
 import java.time.LocalDate;
 import java.sql.SQLException;
@@ -58,6 +59,16 @@ public class PassengerService {
         if (passenger.getFirstName() == null || passenger.getFirstName().isBlank()) {
             throw new BusinessException("Имя обязательно");
         }
+        if (!Validators.isValidName(passenger.getLastName())) {
+            throw new BusinessException("Фамилия должна начинаться с заглавной буквы и содержать только буквы.");
+        }
+        if (!Validators.isValidName(passenger.getFirstName())) {
+            throw new BusinessException("Имя должно начинаться с заглавной буквы и содержать только буквы.");
+        }
+        if (passenger.getMiddleName() != null && !passenger.getMiddleName().isBlank()
+                && !Validators.isValidName(passenger.getMiddleName())) {
+            throw new BusinessException("Отчество должно начинаться с заглавной буквы и содержать только буквы.");
+        }
         if (passenger.getBirthDate() == null || passenger.getBirthDate().isAfter(LocalDate.now())) {
             throw new BusinessException("Дата рождения обязательна и не может быть в будущем");
         }
@@ -67,11 +78,11 @@ public class PassengerService {
         if (passenger.getDocumentNumber() == null || passenger.getDocumentNumber().isBlank()) {
             throw new BusinessException("Номер документа обязателен");
         }
-        if (passenger.getEmail() == null || !passenger.getEmail().contains("@")) {
-            throw new BusinessException("Некорректный email");
+        if (!Validators.isValidEmail(passenger.getEmail())) {
+            throw new BusinessException("Некорректный email: нужен символ @ и окончание .com или .ru (например, ivan@mail.ru).");
         }
-        if (passenger.getPhone() == null || passenger.getPhone().isBlank()) {
-            throw new BusinessException("Телефон обязателен");
+        if (!Validators.isValidPhone(passenger.getPhone())) {
+            throw new BusinessException("Телефон должен состоять только из цифр, от 10 до 15 штук.");
         }
     }
 }

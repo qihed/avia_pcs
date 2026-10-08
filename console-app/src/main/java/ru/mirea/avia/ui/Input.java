@@ -5,6 +5,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
+import ru.mirea.avia.util.Validators;
 import java.util.List;
 import java.util.Locale;
 import java.util.Scanner;
@@ -12,7 +14,9 @@ import java.util.function.Function;
 
 /** Чтение и первичная проверка ввода оператора с консоли. */
 public class Input {
-    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+    /** Дата: день и месяц можно вводить одной или двумя цифрами, разделитель — точка, «/» или «-». */
+    private static final DateTimeFormatter DATE =
+            DateTimeFormatter.ofPattern("d.M.uuuu").withResolverStyle(ResolverStyle.STRICT);
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
     private final Scanner scanner = new Scanner(System.in);
 
@@ -38,7 +42,7 @@ public class Input {
             }
 
             if (value.length() > maxLength) {
-                System.out.println("Ошибка: нельзя вводить больше 60 символов.");
+                System.out.println("Ошибка: нельзя вводить больше " + maxLength + " символов.");
                 continue;
             }
 
@@ -77,11 +81,51 @@ public class Input {
 
     public LocalDate date(String prompt) {
         while (true) {
+            String value = required(prompt + " (дд.ММ.гггг)").replace('/', '.').replace('-', '.');
             try {
-                return LocalDate.parse(required(prompt + " (дд.ММ.гггг)"), DATE);
+                return LocalDate.parse(value, DATE);
             } catch (DateTimeParseException e) {
-                System.out.println("Ошибка: неверный формат даты.");
+                System.out.println("Ошибка: неверная дата. Пример: 05.03.1990.");
             }
+        }
+    }
+
+    /** Дата рождения: корректная дата не позже сегодняшней; при ошибке вопрос повторяется. */
+    public LocalDate birthDate(String prompt) {
+        while (true) {
+            LocalDate value = date(prompt);
+            if (!value.isAfter(LocalDate.now())) return value;
+            System.out.println("Ошибка: дата рождения не может быть в будущем.");
+        }
+    }
+
+    /**
+     * Часть ФИО: не длиннее maxLength и с заглавной буквы. При ошибке повторяется
+     * только этот вопрос, уже введённые поля не сбрасываются.
+     */
+    public String name(String prompt, int maxLength, boolean required) {
+        while (true) {
+            String value = maxLength(prompt, maxLength, required);
+            if (value.isBlank() || Validators.isValidName(value)) return value;
+            System.out.println("Ошибка: должно начинаться с заглавной буквы и содержать только буквы (например, Иванов).");
+        }
+    }
+
+    /** E-mail с символом @ и окончанием .com или .ru; при ошибке повторяется только этот вопрос. */
+    public String email(String prompt) {
+        while (true) {
+            String value = required(prompt);
+            if (Validators.isValidEmail(value)) return value;
+            System.out.println("Ошибка: нужен символ @ и окончание .com или .ru (например, ivan@mail.ru).");
+        }
+    }
+
+    /** Телефон: только цифры (10–15 штук); при ошибке повторяется только этот вопрос. */
+    public String phone(String prompt) {
+        while (true) {
+            String value = required(prompt + " (только цифры, например 89161234567)");
+            if (Validators.isValidPhone(value)) return value;
+            System.out.println("Ошибка: номер должен состоять только из цифр, от 10 до 15 штук.");
         }
     }
 
