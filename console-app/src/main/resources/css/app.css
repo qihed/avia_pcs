@@ -1,0 +1,84 @@
+/* Общая тема JavaFX-клиента. Экраны используют готовые классы и не задают стили в коде. */
+
+.root {
+    -app-primary: #2563eb;
+    -app-danger: #dc2626;
+    -app-bg: #f3f4f6;
+    -app-surface: #ffffff;
+    -app-border: #e5e7eb;
+    -app-text: #111827;
+    -app-muted: #6b7280;
+    -app-sidebar: #0f172a;
+
+    -fx-font-size: 13px;
+    -fx-text-fill: -app-text;
+}
+
+/* ---------- каркас ---------- */
+
+.main-pane, .view { -fx-background-color: -app-bg; }
+.sidebar { -fx-background-color: -app-sidebar; -fx-padding: 26 16 16 16; }
+.brand-title { -fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold; }
+.brand-subtitle { -fx-text-fill: #94a3b8; -fx-font-size: 12px; }
+.nav-button {
+    -fx-background-color: -app-primary;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 10 14;
+    -fx-background-radius: 8;
+}
+.status-bar { -fx-background-color: -app-surface; -fx-padding: 8 16; }
+.connection-badge { -fx-text-fill: #3730a3; -fx-font-size: 12px; }
+
+/* ---------- экран ---------- */
+
+.view-header { -fx-padding: 20 24 12 24; }
+.view-body { -fx-padding: 0 24 12 24; }
+.view-title { -fx-font-size: 22px; -fx-font-weight: bold; }
+.filter-bar {
+    -fx-padding: 12;
+    -fx-background-color: -app-surface;
+    -fx-background-radius: 10;
+    -fx-border-color: -app-border;
+    -fx-border-radius: 10;
+}
+.filter-caption, .count-label, .placeholder-text, .section-title { -fx-text-fill: -app-muted; }
+.section-title { -fx-font-size: 11px; -fx-font-weight: bold; }
+.card-title { -fx-font-size: 16px; -fx-font-weight: bold; }
+.card {
+    -fx-background-color: -app-surface;
+    -fx-background-radius: 10;
+    -fx-border-color: -app-border;
+    -fx-border-radius: 10;
+    -fx-padding: 14;
+}
+/* -fx-background нельзя делать прозрачным: от него считается цвет текста внутри панели */
+.details-scroll { -fx-background-color: transparent; -fx-background: -app-bg; }
+.details-scroll > .viewport { -fx-background-color: transparent; }
+
+/* ---------- кнопки ---------- */
+
+.btn-primary, .btn-secondary, .btn-danger {
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 8 16;
+    -fx-font-weight: bold;
+}
+.btn-primary { -fx-background-color: -app-primary; -fx-text-fill: white; }
+.btn-secondary { -fx-background-color: -app-surface; -fx-border-color: -app-border; }
+.btn-danger { -fx-background-color: -app-danger; -fx-text-fill: white; }
+.btn-link { -fx-background-color: transparent; -fx-text-fill: -app-primary; }
+.button:disabled { -fx-opacity: 0.45; }
+
+/* ---------- таблица ---------- */
+
+.table-view {
+    -fx-background-color: -app-surface;
+    -fx-background-radius: 10;
+    -fx-border-color: -app-border;
+    -fx-border-radius: 10;
+}
+.table-row-cell { -fx-cell-size: 40; }
+.table-row-cell:selected { -fx-background-color: #dbeafe; }
+.table-row-cell:selected .table-cell { -fx-text-fill: -app-text; }

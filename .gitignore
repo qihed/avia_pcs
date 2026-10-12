@@ -19,3 +19,6 @@ backups/
 
 # Console XLSX/CSV exports (generated locally and may contain personal data)
 exports/
+
+# Личные переопределения окружений лаунчера (./avia): env/local.local.env, env/docker.local.env
+env/*.local.env

@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Запуск проекта: ./avia <команда> [окружение]. Окружение: docker (по умолчанию) или local.
+#   up      поднять БД (docker)        down   остановить БД (данные сохраняются)
+#   reset   пересоздать БД с демо-данными (docker)
+#   psql    открыть psql в БД
+#   fx      запустить JavaFX-клиент    console   запустить консольное приложение
+set -euo pipefail
+cd "$(dirname "$0")"
+
+cmd="${1:-help}"
+env="${2:-docker}"
+[[ -f "env/$env.env" ]] || { echo "Нет окружения «$env» (есть: docker, local)" >&2; exit 1; }
+
+set -a
+source "env/$env.env"
+if [[ -f "env/$env.local.env" ]]; then source "env/$env.local.env"; fi
+set +a
+export AVIA_ENV="$env" DB_URL="jdbc:postgresql://$DB_HOST:$DB_PORT/$DB_NAME"
+
+# Docker Desktop на macOS не всегда добавляет docker в PATH; нужен JDK 21 (если он установлен).
+export PATH="$HOME/.docker/bin:$PATH"
+if java21=$(/usr/libexec/java_home -v 21 2>/dev/null); then export JAVA_HOME="$java21"; fi
+
+compose() { docker compose -p "avia-$env" --env-file "env/$env.env" -f console-app/docker-compose.yml "$@"; }
+need_docker() { [[ "$env" == docker ]] || { echo "Команда только для окружения docker" >&2; exit 1; }; }
+db_up() { if [[ "$env" == docker ]]; then compose up -d --wait db; fi; }
+
+case "$cmd" in
+  up)      need_docker; db_up ;;
+  down)    need_docker; compose down ;;
+  reset)   need_docker; compose down -v; db_up ;;
+  psql)
+    if [[ "$env" == docker ]]; then compose exec db psql -U "$DB_USER" -d "$DB_NAME"
+    else PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "$DB_NAME"; fi ;;
+  fx)      db_up; cd console-app; ./mvnw -q compile javafx:run ;;
+  console) db_up; cd console-app; ./mvnw -q compile exec:java ;;
+  *)       sed -n '2,6p' "$0" ;;
+esac

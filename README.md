@@ -43,6 +43,32 @@ src/main/java/ru/mirea/avia/
 
 ## Запуск
 
+Из корня репозитория (нужен JDK 21; для `docker` — Docker Desktop):
+
+```bash
+./avia up docker       # БД в контейнере (порт 5441), схема и демо-данные применяются сами
+./avia fx docker       # JavaFX-клиент (КР2)
+./avia console docker  # консольное приложение (КР1)
+```
+
+Другие команды: `./avia down [env]` (остановить БД, данные сохраняются), `./avia reset [env]`
+(пересоздать БД с демо-данными), `./avia psql [env]`. Окружение — `docker` (по умолчанию) или `local`
+(PostgreSQL на компьютере, порт 5432); параметры лежат в `env/<имя>.env`, личные правки — в
+`env/<имя>.local.env` (игнорируется git). Подключение к БД берётся из переменных `DB_URL`,
+`DB_USER`, `DB_PASSWORD`, иначе из `console-app/src/main/resources/database.properties`.
+
+В IntelliJ IDEA: открыть `console-app/pom.xml` как Maven-проект, JDK 21. Точки входа:
+`ru.mirea.avia.Main` (консоль) и `ru.mirea.avia.fx.FxLauncher` (JavaFX).
+
+### JavaFX-клиент: как добавить экран
+
+Экран — это `fxml/<Имя>View.fxml` без `fx:controller` и контроллер в `fx/controller`, которому сервисы
+передаются через конструктор (см. `MainApp` и `BookingsController`). Кнопка меню добавляется в
+`MainView.fxml`. Общие стили — `css/app.css`. Формы брони (кнопки «Добавить/Изменить/Сменить статус»)
+пока заглушка `onFormNotReady` в `BookingsController`.
+
+### Запуск вручную без лаунчера
+
 ```bash
 cd console-app
 docker compose run --rm app
