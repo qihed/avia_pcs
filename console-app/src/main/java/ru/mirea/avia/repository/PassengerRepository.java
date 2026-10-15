@@ -46,6 +46,43 @@ public class PassengerRepository {
         }
     }
 
+    /** Обновляет все поля пассажира, кроме ID и даты регистрации. */
+    public Passenger update(Passenger passenger) throws SQLException {
+        String sql = """
+                UPDATE passengers
+                SET last_name = ?, first_name = ?, middle_name = ?, birth_date = ?,
+                    document_type = ?, document_number = ?, email = ?, phone = ?
+                WHERE id = ?
+                """;
+        try (Connection connection = database.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, passenger.getLastName());
+            statement.setString(2, passenger.getFirstName());
+            statement.setString(3, passenger.getMiddleName());
+            statement.setDate(4, java.sql.Date.valueOf(passenger.getBirthDate()));
+            statement.setString(5, passenger.getDocumentType().name());
+            statement.setString(6, passenger.getDocumentNumber());
+            statement.setString(7, passenger.getEmail());
+            statement.setString(8, passenger.getPhone());
+            statement.setLong(9, passenger.getId());
+            statement.executeUpdate();
+            return passenger;
+        }
+    }
+
+    /** Занят ли e-mail другим пассажиром (excludeId — ID редактируемого пассажира, 0 для нового). */
+    public boolean existsByEmail(String email, long excludeId) throws SQLException {
+        String sql = "SELECT 1 FROM passengers WHERE lower(email) = lower(?) AND id <> ?";
+        try (Connection connection = database.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, email);
+            statement.setLong(2, excludeId);
+            try (ResultSet rs = statement.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
     public List<Passenger> findAll() throws SQLException {
         String sql = "SELECT * FROM passengers ORDER BY id";
         try (Connection connection = database.getConnection();

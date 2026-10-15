@@ -7,25 +7,43 @@ import ru.mirea.avia.model.Passenger;
 import ru.mirea.avia.repository.PassengerRepository;
 import ru.mirea.avia.util.Validators;
 
-import java.time.LocalDate;
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.List;
 
 /** Ведение справочника пассажиров. */
 public class PassengerService {
+    /** С этого возраста у гражданина РФ должен быть паспорт, до него — свидетельство о рождении. */
+    public static final int PASSPORT_AGE = 14;
+    public static final int MAX_AGE = 120;
+
     private final PassengerRepository repository;
 
     public PassengerService(PassengerRepository repository) {
         this.repository = repository;
     }
-    
+
     public Passenger create(String lastName, String firstName, String middleName, LocalDate birthDate,
                             DocumentType documentType, String documentNumber, String email,
                             String phone) throws SQLException {
         Passenger passenger = new Passenger(lastName, firstName, middleName, birthDate,
                 documentType, documentNumber, email, phone);
         validate(passenger);
+        requireUniqueEmail(passenger);
         return repository.create(passenger);
+    }
+
+    /** Изменение данных пассажира (форма «Изменить»). ID и дата регистрации не меняются. */
+    public Passenger update(long id, String lastName, String firstName, String middleName, LocalDate birthDate,
+                            DocumentType documentType, String documentNumber, String email,
+                            String phone) throws SQLException {
+        Passenger current = get(id);
+        Passenger passenger = new Passenger(id, lastName, firstName, middleName, birthDate,
+                documentType, documentNumber, email, phone, current.getCreatedAt());
+        validate(passenger);
+        requireUniqueEmail(passenger);
+        return repository.update(passenger);
     }
 
     public List<Passenger> list() throws SQLException {
@@ -39,6 +57,28 @@ public class PassengerService {
 
     public long count() throws SQLException {
         return repository.count();
+    }
+
+    /**
+     * Проверка соответствия типа документа возрасту. Возвращает текст ошибки или {@code null}, если всё в порядке —
+     * этим же методом пользуется форма пассажира, чтобы показать ошибку прямо у поля.
+     */
+    public static String checkDocumentForAge(DocumentType type, LocalDate birthDate) {
+        if (type == null || birthDate == null) return null;
+        int age = Period.between(birthDate, LocalDate.now()).getYears();
+        if (type == DocumentType.PASSPORT_RF && age < PASSPORT_AGE) {
+            return "Паспорт РФ выдаётся с " + PASSPORT_AGE + " лет — для ребёнка укажите свидетельство о рождении.";
+        }
+        if (type == DocumentType.BIRTH_CERTIFICATE && age >= PASSPORT_AGE) {
+            return "Свидетельство о рождении действует только до " + PASSPORT_AGE + " лет.";
+        }
+        return null;
+    }
+
+    private void requireUniqueEmail(Passenger passenger) throws SQLException {
+        if (repository.existsByEmail(passenger.getEmail(), passenger.getId())) {
+            throw new BusinessException("Пассажир с e-mail " + passenger.getEmail() + " уже зарегистрирован.");
+        }
     }
 
     private void validate(Passenger passenger) {
@@ -72,14 +112,28 @@ public class PassengerService {
         if (passenger.getBirthDate() == null || passenger.getBirthDate().isAfter(LocalDate.now())) {
             throw new BusinessException("Дата рождения обязательна и не может быть в будущем");
         }
+        if (passenger.getBirthDate().isBefore(LocalDate.now().minusYears(MAX_AGE))) {
+            throw new BusinessException("Проверьте дату рождения: возраст больше " + MAX_AGE + " лет.");
+        }
         if (passenger.getDocumentType() == null) {
             throw new BusinessException("Тип документа не выбран");
         }
         if (passenger.getDocumentNumber() == null || passenger.getDocumentNumber().isBlank()) {
             throw new BusinessException("Номер документа обязателен");
         }
+        if (!Validators.isValidDocumentNumber(passenger.getDocumentType(), passenger.getDocumentNumber())) {
+            throw new BusinessException("Неверный номер документа «" + passenger.getDocumentType().getTitle() + "»: "
+                    + Validators.documentNumberHint(passenger.getDocumentType()) + ".");
+        }
+        String documentError = checkDocumentForAge(passenger.getDocumentType(), passenger.getBirthDate());
+        if (documentError != null) {
+            throw new BusinessException(documentError);
+        }
         if (!Validators.isValidEmail(passenger.getEmail())) {
             throw new BusinessException("Некорректный email: нужен символ @ и окончание .com или .ru (например, ivan@mail.ru).");
+        }
+        if (passenger.getEmail().length() > 120) {
+            throw new BusinessException("E-mail не должен превышать 120 символов.");
         }
         if (!Validators.isValidPhone(passenger.getPhone())) {
             throw new BusinessException("Телефон должен состоять только из цифр, от 10 до 15 штук.");

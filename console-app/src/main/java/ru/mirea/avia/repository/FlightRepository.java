@@ -9,6 +9,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -45,6 +46,64 @@ public class FlightRepository {
                 rs.next();
                 flight.setId(rs.getLong("id"));
                 return flight;
+            }
+        }
+    }
+
+    /** Обновляет все поля рейса, кроме ID. */
+    public Flight update(Flight flight) throws SQLException {
+        String sql = """
+                UPDATE flights
+                SET flight_number = ?, airline = ?, departure_airport = ?, arrival_airport = ?,
+                    departure_time = ?, arrival_time = ?, aircraft_type = ?, total_seats = ?,
+                    base_price = ?, status = ?
+                WHERE id = ?
+                """;
+        try (Connection connection = database.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, flight.getFlightNumber());
+            statement.setString(2, flight.getAirline());
+            statement.setString(3, flight.getDepartureAirport());
+            statement.setString(4, flight.getArrivalAirport());
+            statement.setTimestamp(5, Timestamp.valueOf(flight.getDepartureTime()));
+            statement.setTimestamp(6, Timestamp.valueOf(flight.getArrivalTime()));
+            statement.setString(7, flight.getAircraftType());
+            statement.setInt(8, flight.getTotalSeats());
+            statement.setBigDecimal(9, flight.getBasePrice());
+            statement.setString(10, flight.getStatus().name());
+            statement.setLong(11, flight.getId());
+            statement.executeUpdate();
+            return flight;
+        }
+    }
+
+    /** Есть ли другой рейс с тем же номером в тот же день вылета (excludeId — ID редактируемого рейса, 0 для нового). */
+    public boolean existsByNumberAndDate(String flightNumber, LocalDate departureDate, long excludeId)
+            throws SQLException {
+        String sql = """
+                SELECT 1 FROM flights
+                WHERE flight_number = ? AND CAST(departure_time AS DATE) = ? AND id <> ?
+                """;
+        try (Connection connection = database.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, flightNumber);
+            statement.setDate(2, java.sql.Date.valueOf(departureDate));
+            statement.setLong(3, excludeId);
+            try (ResultSet rs = statement.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    /** Сколько броней на рейсе ещё занимают места (не отменены и не просрочены). */
+    public int countActiveBookings(long flightId) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM bookings WHERE flight_id = ? AND status NOT IN ('CANCELLED', 'EXPIRED')";
+        try (Connection connection = database.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setLong(1, flightId);
+            try (ResultSet rs = statement.executeQuery()) {
+                rs.next();
+                return rs.getInt(1);
             }
         }
     }

@@ -4,6 +4,7 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
@@ -17,13 +18,23 @@
                 <Label text="Система бронирования билетов" styleClass="brand-subtitle" wrapText="true"/>
             </VBox>
             <Button text="Бронирования" styleClass="nav-button" maxWidth="Infinity"/>
+            <!-- Временно, пока нет экранов «Пассажиры» и «Рейсы»: формы открываются прямо из меню. -->
+            <VBox spacing="4">
+                <Label text="ФОРМЫ" styleClass="sidebar-caption"/>
+                <Button text="Новый пассажир" styleClass="nav-link" maxWidth="Infinity" onAction="#onNewPassenger"/>
+                <Button text="Изменить пассажира" styleClass="nav-link" maxWidth="Infinity" onAction="#onEditPassenger"/>
+                <Button text="Новый рейс" styleClass="nav-link" maxWidth="Infinity" onAction="#onNewFlight"/>
+                <Button text="Изменить рейс" styleClass="nav-link" maxWidth="Infinity" onAction="#onEditFlight"/>
+            </VBox>
         </VBox>
     </left>
     <center>
         <StackPane fx:id="contentPane"/>
     </center>
     <bottom>
-        <HBox styleClass="status-bar" alignment="CENTER_RIGHT">
+        <HBox styleClass="status-bar" alignment="CENTER_LEFT" spacing="12">
+            <Label fx:id="statusMessage" styleClass="status-message"/>
+            <Region HBox.hgrow="ALWAYS"/>
             <Label fx:id="connectionBadge" styleClass="connection-badge"/>
         </HBox>
     </bottom>

@@ -14,6 +14,8 @@ import ru.mirea.avia.repository.FlightRepository;
 import ru.mirea.avia.repository.JdbcBookingRepository;
 import ru.mirea.avia.repository.PassengerRepository;
 import ru.mirea.avia.service.BookingService;
+import ru.mirea.avia.service.FlightService;
+import ru.mirea.avia.service.PassengerService;
 import ru.mirea.avia.util.DatabaseManager;
 import ru.mirea.avia.util.ExcelExporter;
 
@@ -37,16 +39,21 @@ public final class MainApp extends Application {
         FlightRepository flights = new FlightRepository(database);
         BookingRepository bookingRepository = new JdbcBookingRepository(database);
         BookingService bookings = new BookingService(bookingRepository, passengers, flights);
+        PassengerService passengerService = new PassengerService(passengers);
+        FlightService flightService = new FlightService(flights);
 
         FXMLLoader mainLoader = new FXMLLoader(getClass().getResource("/fxml/MainView.fxml"));
         Parent root = mainLoader.load();
         FXMLLoader bookingsLoader = new FXMLLoader(getClass().getResource("/fxml/BookingsView.fxml"));
-        bookingsLoader.setController(new BookingsController(bookings, new ExcelExporter()));
+        BookingsController bookingsController = new BookingsController(bookings, new ExcelExporter());
+        bookingsLoader.setController(bookingsController);
 
         String env = System.getenv("AVIA_ENV");
         String target = database.getUrl().replace("jdbc:postgresql://", "");
-        mainLoader.<MainController>getController()
-                .show(bookingsLoader.load(), (env == null ? "ручной запуск" : env) + " · " + target);
+        MainController main = mainLoader.getController();
+        main.show(bookingsLoader.load(), (env == null ? "ручной запуск" : env) + " · " + target);
+        // Формы пассажира и рейса; после сохранения таблица броней перечитывается (в ней видны ФИО и рейс).
+        main.setForms(passengerService, flightService, bookingsController::refresh);
 
         Scene scene = new Scene(root, 1360, 820);
         scene.getStylesheets().add(getClass().getResource("/css/app.css").toExternalForm());

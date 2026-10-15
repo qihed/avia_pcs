@@ -28,7 +28,17 @@
     -fx-padding: 10 14;
     -fx-background-radius: 8;
 }
+.sidebar-caption { -fx-text-fill: #64748b; -fx-font-size: 11px; -fx-font-weight: bold; -fx-padding: 0 0 4 4; }
+.nav-link {
+    -fx-background-color: transparent;
+    -fx-text-fill: #cbd5e1;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 8 14;
+    -fx-background-radius: 8;
+}
+.nav-link:hover { -fx-background-color: #1e293b; -fx-text-fill: white; }
 .status-bar { -fx-background-color: -app-surface; -fx-padding: 8 16; }
+.status-message { -fx-text-fill: #15803d; -fx-font-size: 12px; }
 .connection-badge { -fx-text-fill: #3730a3; -fx-font-size: 12px; }
 
 /* ---------- экран ---------- */
@@ -82,3 +92,31 @@
 .table-row-cell { -fx-cell-size: 40; }
 .table-row-cell:selected { -fx-background-color: #dbeafe; }
 .table-row-cell:selected .table-cell { -fx-text-fill: -app-text; }
+
+/* ---------- формы (PassengerFormDialog, FlightFormDialog) ---------- */
+
+.form-dialog { -fx-background-color: -app-bg; }
+.form-dialog > .header-panel {
+    -fx-background-color: -app-surface;
+    -fx-border-color: transparent transparent -app-border transparent;
+    -fx-padding: 16 20;
+}
+.form-dialog > .header-panel .label { -fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: -app-text; }
+.form-dialog > .content { -fx-padding: 18 20 8 20; }
+.form-dialog > .button-bar > .container { -fx-padding: 12 20 16 20; }
+.form-label { -fx-font-size: 12px; -fx-font-weight: bold; }
+.field-hint { -fx-text-fill: -app-muted; -fx-font-size: 11px; }
+.field-error { -fx-text-fill: -app-danger; -fx-font-size: 11px; }
+.form-error-banner {
+    -fx-background-color: #fef2f2;
+    -fx-background-radius: 8;
+    -fx-border-color: #fecaca;
+    -fx-border-radius: 8;
+    -fx-text-fill: #991b1b;
+    -fx-padding: 10 12;
+}
+.text-field.invalid, .combo-box.invalid, .date-picker.invalid > .text-field {
+    -fx-border-color: -app-danger;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+}

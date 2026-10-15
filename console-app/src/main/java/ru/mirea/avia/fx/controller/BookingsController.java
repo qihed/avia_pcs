@@ -197,6 +197,11 @@ public final class BookingsController {
 
     // ---------- кнопки ----------
 
+    /** Перечитать брони из БД (например, после изменения пассажира или рейса в форме). */
+    public void refresh() {
+        onRefresh();
+    }
+
     @FXML
     private void onRefresh() {
         Booking selected = table.getSelectionModel().getSelectedItem();

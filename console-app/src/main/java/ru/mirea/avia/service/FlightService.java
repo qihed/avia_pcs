@@ -1,19 +1,33 @@
 package ru.mirea.avia.service;
 
+import ru.mirea.avia.exception.BusinessException;
+import ru.mirea.avia.exception.EntityNotFoundException;
 import ru.mirea.avia.model.Flight;
+import ru.mirea.avia.model.FlightStatus;
 import ru.mirea.avia.repository.FlightRepository;
+import ru.mirea.avia.util.Validators;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Scanner;
 
 public class FlightService {
     private final FlightRepository flightRepository;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+    private static final DateTimeFormatter DATE_ONLY = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+
+    public static final int MAX_AIRLINE_LENGTH = 60;
+    public static final int MAX_AIRCRAFT_LENGTH = 40;
+    public static final int MAX_SEATS = 600;
+    public static final int MAX_FLIGHT_HOURS = 24;
+    /** NUMERIC(10,2) в таблице flights. */
+    public static final BigDecimal MAX_PRICE = new BigDecimal("99999999.99");
 
     public FlightService(FlightRepository flightRepository) {
         this.flightRepository = flightRepository;
@@ -37,25 +51,106 @@ public class FlightService {
         }
     }
 
-    public Flight create(String flightNumber, String airline, String departureAirport, 
-                   String arrivalAirport, LocalDateTime departureTime, LocalDateTime arrivalTime, 
-                   String aircraftType, int totalSeats, BigDecimal baseFare) {
-    try {
-        // Создаем объект рейса через конструктор с параметрами
-        Flight flight = new Flight(flightNumber, airline, departureAirport, arrivalAirport, 
-                                   departureTime, arrivalTime, aircraftType, totalSeats, baseFare);
-
-        // Сохраняем в базу данных (если ваш репозиторий использует .save() или .add())
-        flightRepository.create(flight); 
-
-        // Возвращаем созданный объект, чтобы ConsoleUI мог его принять
-        return flight;
-    } catch (SQLException e) {
-        System.out.println("Ошибка при сохранении рейса: " + e.getMessage());
-        return null;
+    /**
+     * Создание рейса: проверка всех полей и бизнес-правил, затем сохранение. Новый рейс получает статус
+     * «По расписанию». Нарушение правил — {@link BusinessException}, ошибка БД — {@link SQLException}.
+     */
+    public Flight create(String flightNumber, String airline, String departureAirport,
+                         String arrivalAirport, LocalDateTime departureTime, LocalDateTime arrivalTime,
+                         String aircraftType, int totalSeats, BigDecimal baseFare) throws SQLException {
+        Flight flight = new Flight(normalizeCode(flightNumber), trim(airline), normalizeCode(departureAirport),
+                normalizeCode(arrivalAirport), departureTime, arrivalTime, trim(aircraftType), totalSeats, baseFare);
+        validate(flight);
+        if (departureTime.isBefore(LocalDateTime.now())) {
+            throw new BusinessException("Нельзя создать рейс с вылетом в прошлом.");
+        }
+        requireUniqueNumber(flight);
+        return flightRepository.create(flight);
     }
-}
-public void addFlight(Scanner scanner) {
+
+    /** Изменение рейса (форма «Изменить»): все поля, включая статус. */
+    public Flight update(long id, String flightNumber, String airline, String departureAirport,
+                         String arrivalAirport, LocalDateTime departureTime, LocalDateTime arrivalTime,
+                         String aircraftType, int totalSeats, BigDecimal baseFare, FlightStatus status)
+            throws SQLException {
+        flightRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Рейс с ID " + id + " не найден"));
+        Flight flight = new Flight(id, normalizeCode(flightNumber), trim(airline), normalizeCode(departureAirport),
+                normalizeCode(arrivalAirport), departureTime, arrivalTime, trim(aircraftType), totalSeats,
+                baseFare, status);
+        validate(flight);
+        requireUniqueNumber(flight);
+        int booked = flightRepository.countActiveBookings(id);
+        if (totalSeats < booked) {
+            throw new BusinessException("На рейс уже оформлено " + booked + " активных броней — мест не может быть меньше.");
+        }
+        return flightRepository.update(flight);
+    }
+
+    private void requireUniqueNumber(Flight flight) throws SQLException {
+        if (flightRepository.existsByNumberAndDate(flight.getFlightNumber(),
+                flight.getDepartureTime().toLocalDate(), flight.getId())) {
+            throw new BusinessException("Рейс " + flight.getFlightNumber() + " на "
+                    + flight.getDepartureTime().toLocalDate().format(DATE_ONLY) + " уже существует.");
+        }
+    }
+
+    private void validate(Flight flight) {
+        if (!Validators.isValidFlightNumber(flight.getFlightNumber())) {
+            throw new BusinessException("Номер рейса: код авиакомпании из 2 символов и 1–4 цифры, например SU1420.");
+        }
+        if (flight.getAirline() == null || flight.getAirline().isEmpty()) {
+            throw new BusinessException("Авиакомпания обязательна.");
+        }
+        if (flight.getAirline().length() > MAX_AIRLINE_LENGTH) {
+            throw new BusinessException("Название авиакомпании не должно превышать " + MAX_AIRLINE_LENGTH + " символов.");
+        }
+        if (!Validators.isValidAirportCode(flight.getDepartureAirport())
+                || !Validators.isValidAirportCode(flight.getArrivalAirport())) {
+            throw new BusinessException("Код аэропорта IATA — 3 латинские буквы, например SVO.");
+        }
+        if (flight.getDepartureAirport().equals(flight.getArrivalAirport())) {
+            throw new BusinessException("Аэропорты вылета и прилёта должны различаться.");
+        }
+        if (flight.getDepartureTime() == null || flight.getArrivalTime() == null) {
+            throw new BusinessException("Укажите дату и время вылета и прилёта.");
+        }
+        if (!flight.getArrivalTime().isAfter(flight.getDepartureTime())) {
+            throw new BusinessException("Время прилёта должно быть позже времени вылета.");
+        }
+        if (Duration.between(flight.getDepartureTime(), flight.getArrivalTime()).toHours() >= MAX_FLIGHT_HOURS) {
+            throw new BusinessException("Рейс не может длиться больше " + MAX_FLIGHT_HOURS + " часов.");
+        }
+        if (flight.getAircraftType() == null || flight.getAircraftType().isEmpty()) {
+            throw new BusinessException("Тип воздушного судна обязателен.");
+        }
+        if (flight.getAircraftType().length() > MAX_AIRCRAFT_LENGTH) {
+            throw new BusinessException("Тип воздушного судна не должен превышать " + MAX_AIRCRAFT_LENGTH + " символов.");
+        }
+        if (flight.getTotalSeats() < 1 || flight.getTotalSeats() > MAX_SEATS) {
+            throw new BusinessException("Число мест — от 1 до " + MAX_SEATS + ".");
+        }
+        if (flight.getBasePrice() == null || flight.getBasePrice().signum() <= 0) {
+            throw new BusinessException("Базовый тариф должен быть больше нуля.");
+        }
+        if (flight.getBasePrice().scale() > 2 || flight.getBasePrice().compareTo(MAX_PRICE) > 0) {
+            throw new BusinessException("Базовый тариф: не больше " + MAX_PRICE.toPlainString()
+                    + " руб. и не больше двух знаков после запятой.");
+        }
+        if (flight.getStatus() == null) {
+            throw new BusinessException("Статус рейса не выбран.");
+        }
+    }
+
+    private static String normalizeCode(String value) {
+        return value == null ? null : value.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private static String trim(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    public void addFlight(Scanner scanner) {
         System.out.println("\n--- Добавить рейс ---");
 
         String flightNumber = readNonEmptyString(scanner, "Номер рейса: ");
@@ -81,9 +176,15 @@ public void addFlight(Scanner scanner) {
         double baseFareDouble = readPositiveDouble(scanner, "Базовый тариф: ");
         BigDecimal baseFare = BigDecimal.valueOf(baseFareDouble);
 
-        // Вызываем ваш оригинальный метод создания без попытки присвоить результат в переменную
-        create(flightNumber, airline, departureAirport, arrivalAirport, departureTime, arrivalTime, aircraftType, seatsCount, baseFare);
-        System.out.println("Рейс успешно добавлен!");
+        try {
+            create(flightNumber, airline, departureAirport, arrivalAirport, departureTime, arrivalTime,
+                    aircraftType, seatsCount, baseFare);
+            System.out.println("Рейс успешно добавлен!");
+        } catch (BusinessException e) {
+            System.out.println("Ошибка: " + e.getMessage());
+        } catch (SQLException e) {
+            System.out.println("Ошибка при сохранении рейса: " + e.getMessage());
+        }
     }
 
     private String readNonEmptyString(Scanner scanner, String prompt) {
