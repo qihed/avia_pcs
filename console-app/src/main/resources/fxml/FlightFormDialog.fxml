@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.DialogPane?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<!-- Форма рейса (добавить / изменить). Открывается через FlightFormController.open(...),
+     контроллер с сервисом задаётся в коде, поэтому fx:controller здесь нет. Кнопки добавляет FormDialogs. -->
+<DialogPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            styleClass="form-dialog" prefWidth="660">
+    <content>
+        <VBox spacing="14">
+            <Label fx:id="formError" styleClass="form-error-banner" wrapText="true" maxWidth="Infinity"/>
+
+            <Label text="РЕЙС И МАРШРУТ" styleClass="section-title"/>
+            <GridPane hgap="16" vgap="10">
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="50"/>
+                    <ColumnConstraints percentWidth="50"/>
+                </columnConstraints>
+
+                <VBox spacing="4" GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.valignment="TOP">
+                    <Label text="Номер рейса *" styleClass="form-label"/>
+                    <TextField fx:id="flightNumberField" promptText="SU1420"/>
+                    <Label fx:id="flightNumberError" styleClass="field-error" wrapText="true"/>
+                </VBox>
+                <VBox spacing="4" GridPane.columnIndex="1" GridPane.rowIndex="0" GridPane.valignment="TOP">
+                    <Label text="Авиакомпания *" styleClass="form-label"/>
+                    <TextField fx:id="airlineField" promptText="Аэрофлот"/>
+                    <Label fx:id="airlineError" styleClass="field-error" wrapText="true"/>
+                </VBox>
+                <VBox spacing="4" GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.valignment="TOP">
+                    <Label text="Откуда (код IATA) *" styleClass="form-label"/>
+                    <TextField fx:id="departureAirportField" promptText="SVO"/>
+                    <Label fx:id="departureAirportError" styleClass="field-error" wrapText="true"/>
+                </VBox>
+                <VBox spacing="4" GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.valignment="TOP">
+                    <Label text="Куда (код IATA) *" styleClass="form-label"/>
+                    <TextField fx:id="arrivalAirportField" promptText="LED"/>
+                    <Label fx:id="arrivalAirportError" styleClass="field-error" wrapText="true"/>
+                </VBox>
+            </GridPane>
+
+            <Label text="РАСПИСАНИЕ" styleClass="section-title"/>
+            <GridPane hgap="16" vgap="10">
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="50"/>
+                    <ColumnConstraints percentWidth="50"/>
+                </columnConstraints>
+
+                <VBox spacing="4" GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.valignment="TOP">
+                    <Label text="Вылет: дата и время *" styleClass="form-label"/>
+                    <HBox spacing="8">
+                        <DatePicker fx:id="departureDatePicker" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
+                        <TextField fx:id="departureTimeField" promptText="ЧЧ:ММ" prefColumnCount="4" minWidth="70" maxWidth="70"/>
+                    </HBox>
+                    <Label fx:id="departureError" styleClass="field-error" wrapText="true"/>
+                </VBox>
+                <VBox spacing="4" GridPane.columnIndex="1" GridPane.rowIndex="0" GridPane.valignment="TOP">
+                    <Label text="Прилёт: дата и время *" styleClass="form-label"/>
+                    <HBox spacing="8">
+                        <DatePicker fx:id="arrivalDatePicker" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
+                        <TextField fx:id="arrivalTimeField" promptText="ЧЧ:ММ" prefColumnCount="4" minWidth="70" maxWidth="70"/>
+                    </HBox>
+                    <Label fx:id="durationLabel" styleClass="field-hint"/>
+                    <Label fx:id="arrivalError" styleClass="field-error" wrapText="true"/>
+                </VBox>
+            </GridPane>
+
+            <Label text="БОРТ И ТАРИФ" styleClass="section-title"/>
+            <GridPane hgap="16" vgap="10">
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="50"/>
+                    <ColumnConstraints percentWidth="50"/>
+                </columnConstraints>
+
+                <VBox spacing="4" GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.valignment="TOP">
+                    <Label text="Тип воздушного судна *" styleClass="form-label"/>
+                    <TextField fx:id="aircraftField" promptText="Airbus A320"/>
+                    <Label fx:id="aircraftError" styleClass="field-error" wrapText="true"/>
+                </VBox>
+                <VBox spacing="4" GridPane.columnIndex="1" GridPane.rowIndex="0" GridPane.valignment="TOP">
+                    <Label text="Число мест *" styleClass="form-label"/>
+                    <TextField fx:id="seatsField" promptText="180"/>
+                    <Label fx:id="seatsError" styleClass="field-error" wrapText="true"/>
+                </VBox>
+                <VBox spacing="4" GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.valignment="TOP">
+                    <Label text="Базовый тариф, ₽ *" styleClass="form-label"/>
+                    <TextField fx:id="priceField" promptText="6400"/>
+                    <Label fx:id="priceError" styleClass="field-error" wrapText="true"/>
+                </VBox>
+                <VBox spacing="4" GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.valignment="TOP">
+                    <Label text="Статус рейса *" styleClass="form-label"/>
+                    <ComboBox fx:id="statusCombo" maxWidth="Infinity"/>
+                    <Label fx:id="statusHint" styleClass="field-hint" wrapText="true"/>
+                    <Label fx:id="statusError" styleClass="field-error" wrapText="true"/>
+                </VBox>
+            </GridPane>
+
+            <Label text="* — обязательные поля" styleClass="field-hint"/>
+        </VBox>
+    </content>
+</DialogPane>

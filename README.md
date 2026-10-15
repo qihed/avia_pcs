@@ -67,6 +67,27 @@ src/main/java/ru/mirea/avia/
 `MainView.fxml`. Общие стили — `css/app.css`. Формы брони (кнопки «Добавить/Изменить/Сменить статус»)
 пока заглушка `onFormNotReady` в `BookingsController`.
 
+### Формы пассажира и рейса
+
+`PassengerFormDialog.fxml` + `PassengerFormController` и `FlightFormDialog.fxml` + `FlightFormController` —
+модальные формы «Добавить / Изменить». Ошибки ввода показываются красным под полем, ошибки бизнес-правил
+(дубль e-mail, рейс с таким номером в этот день уже есть, мест меньше, чем броней) — плашкой сверху формы.
+Окно не закрывается, пока данные не сохранены. Вызов из экранов «Пассажиры» и «Рейсы»:
+
+```java
+Window owner = table.getScene().getWindow();
+PassengerFormController.open(owner, passengerService, null).ifPresent(p -> onRefresh());      // добавить
+PassengerFormController.open(owner, passengerService, selected).ifPresent(p -> onRefresh());  // изменить
+FlightFormController.open(owner, flightService, null).ifPresent(f -> onRefresh());
+FlightFormController.open(owner, flightService, selected).ifPresent(f -> onRefresh());
+```
+
+Общая обвязка (`FormDialogs`, `FormErrors`, `FormFields`) подойдёт и для формы брони.
+
+Пока экранов «Пассажиры» и «Рейсы» нет, формы открываются из раздела «Формы» в левом меню главного окна
+(`./avia fx docker`); «Изменить…» сначала предлагает выбрать запись из списка. Когда экраны появятся,
+этот раздел убирается из `MainView.fxml`, а вызовы переезжают в контроллеры экранов.
+
 ### Запуск вручную без лаунчера
 
 ```bash
