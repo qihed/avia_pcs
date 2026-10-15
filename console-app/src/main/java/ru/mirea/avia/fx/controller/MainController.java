@@ -7,8 +7,6 @@ import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Window;
-import ru.mirea.avia.model.Flight;
-import ru.mirea.avia.model.Passenger;
 import ru.mirea.avia.service.FlightService;
 import ru.mirea.avia.service.PassengerService;
 
