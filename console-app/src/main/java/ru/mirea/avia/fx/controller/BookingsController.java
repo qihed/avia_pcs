@@ -15,6 +15,7 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
@@ -26,6 +27,7 @@ import ru.mirea.avia.model.FareClass;
 import ru.mirea.avia.model.Flight;
 import ru.mirea.avia.model.Passenger;
 import ru.mirea.avia.service.BookingService;
+import ru.mirea.avia.service.PassengerService;
 import ru.mirea.avia.util.ExcelExporter;
 
 import java.io.File;
@@ -39,7 +41,8 @@ import java.util.function.Function;
 
 /**
  * Экран «Бронирования»: таблица с поиском и фильтрами, сортировка кликом по заголовку колонки,
- * панель данных пассажира и рейса, удаление и экспорт в Excel. SQL здесь нет — только вызовы BookingService.
+ * панель данных пассажира и рейса, добавление и изменение через форму брони, удаление и экспорт в Excel.
+ * SQL здесь нет — только вызовы BookingService.
  */
 public final class BookingsController {
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
@@ -72,13 +75,15 @@ public final class BookingsController {
     @FXML private Label flightInfo;
 
     private final BookingService bookings;
+    private final PassengerService passengers;
     private final ExcelExporter exporter;
     private final ObservableList<Booking> items = FXCollections.observableArrayList();
     private final FilteredList<Booking> filtered = new FilteredList<>(items);
     private final SortedList<Booking> sorted = new SortedList<>(filtered);
 
-    public BookingsController(BookingService bookings, ExcelExporter exporter) {
+    public BookingsController(BookingService bookings, PassengerService passengers, ExcelExporter exporter) {
         this.bookings = bookings;
+        this.passengers = passengers;
         this.exporter = exporter;
     }
 
@@ -110,6 +115,14 @@ public final class BookingsController {
         placeholder.visibleProperty().bind(noSelection);
         placeholder.managedProperty().bind(placeholder.visibleProperty());
         table.getSelectionModel().selectedItemProperty().addListener((o, a, booking) -> showDetails(booking));
+        // Двойной клик по строке — то же, что кнопка «Изменить».
+        table.setRowFactory(t -> {
+            TableRow<Booking> row = new TableRow<>();
+            row.setOnMouseClicked(e -> {
+                if (e.getClickCount() == 2 && !row.isEmpty()) onEdit();
+            });
+            return row;
+        });
 
         onRefresh();
     }
@@ -205,6 +218,11 @@ public final class BookingsController {
     @FXML
     private void onRefresh() {
         Booking selected = table.getSelectionModel().getSelectedItem();
+        reload(selected == null ? null : selected.getId());
+    }
+
+    /** Перечитывает брони и выделяет строку с указанным ID, если она видна. */
+    private void reload(Long selectId) {
         try {
             items.setAll(bookings.list());
         } catch (Exception e) {
@@ -212,9 +230,11 @@ public final class BookingsController {
             return;
         }
         updateCount();
-        if (selected != null) {
-            items.stream().filter(b -> b.getId() == selected.getId()).findFirst()
-                    .ifPresent(b -> table.getSelectionModel().select(b));
+        if (selectId != null) {
+            sorted.stream().filter(b -> b.getId() == selectId).findFirst().ifPresent(b -> {
+                table.getSelectionModel().select(b);
+                table.scrollTo(b);
+            });
         }
     }
 
@@ -228,10 +248,32 @@ public final class BookingsController {
         table.getSortOrder().clear();
     }
 
-    /** Добавление, изменение и смена статуса: формы делает другой участник команды. */
     @FXML
-    private void onFormNotReady() {
-        new Alert(Alert.AlertType.INFORMATION, "Форма брони ещё не подключена.").showAndWait();
+    private void onAdd() {
+        BookingFormController.open(table.getScene().getWindow(), bookings, passengers, null)
+                .ifPresent(saved -> reload(saved.getId()));
+    }
+
+    /** Изменение: сначала проверяется, что бронь можно менять, и только потом открывается форма. */
+    @FXML
+    private void onEdit() {
+        Booking selected = table.getSelectionModel().getSelectedItem();
+        if (selected == null) return;
+        Booking current;
+        try {
+            current = bookings.requireEditable(selected.getId());   // CREATED/PAID и рейс ещё не вылетел
+        } catch (Exception e) {
+            error(e);
+            return;
+        }
+        BookingFormController.open(table.getScene().getWindow(), bookings, passengers, current)
+                .ifPresent(saved -> reload(saved.getId()));
+    }
+
+    /** Смена статуса пока в разработке. */
+    @FXML
+    private void onChangeStatus() {
+        new Alert(Alert.AlertType.INFORMATION, "Смена статуса пока в разработке.").showAndWait();
     }
 
     @FXML

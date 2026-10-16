@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DialogPane?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.VBox?>
+
+<!-- Форма бронирования (добавить / изменить). Открывается через BookingFormController.open(...),
+     контроллер с сервисами задаётся в коде, поэтому fx:controller здесь нет. Кнопки добавляет FormDialogs. -->
+<DialogPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            styleClass="form-dialog" prefWidth="640">
+    <content>
+        <VBox spacing="14">
+            <Label fx:id="formError" styleClass="form-error-banner" wrapText="true" maxWidth="Infinity"/>
+
+            <Label text="ПАССАЖИР И РЕЙС" styleClass="section-title"/>
+            <VBox spacing="10">
+                <VBox spacing="4">
+                    <Label text="Пассажир *" styleClass="form-label"/>
+                    <ComboBox fx:id="passengerCombo" maxWidth="Infinity"
+                              promptText="Начните вводить фамилию или номер документа"/>
+                    <Label fx:id="passengerError" styleClass="field-error" wrapText="true"/>
+                </VBox>
+                <VBox spacing="4">
+                    <Label text="Рейс *" styleClass="form-label"/>
+                    <ComboBox fx:id="flightCombo" maxWidth="Infinity"
+                              promptText="Начните вводить номер рейса, аэропорт или авиакомпанию"/>
+                    <Label fx:id="flightHint" styleClass="field-hint" wrapText="true"/>
+                    <Label fx:id="flightError" styleClass="field-error" wrapText="true"/>
+                </VBox>
+            </VBox>
+
+            <Label text="МЕСТО И ТАРИФ" styleClass="section-title"/>
+            <GridPane hgap="16" vgap="10">
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="50"/>
+                    <ColumnConstraints percentWidth="50"/>
+                </columnConstraints>
+
+                <VBox spacing="4" GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.valignment="TOP">
+                    <Label text="Место *" styleClass="form-label"/>
+                    <TextField fx:id="seatField" promptText="12A"/>
+                    <Label text="ряд и буква A–F, например 12A" styleClass="field-hint"/>
+                    <Label fx:id="seatError" styleClass="field-error" wrapText="true"/>
+                </VBox>
+                <VBox spacing="4" GridPane.columnIndex="1" GridPane.rowIndex="0" GridPane.valignment="TOP">
+                    <Label text="Класс обслуживания *" styleClass="form-label"/>
+                    <ComboBox fx:id="fareClassCombo" maxWidth="Infinity" promptText="Выберите"/>
+                    <Label fx:id="fareClassError" styleClass="field-error" wrapText="true"/>
+                </VBox>
+                <VBox spacing="4" GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.valignment="TOP">
+                    <Label text="Стоимость, ₽ *" styleClass="form-label"/>
+                    <TextField fx:id="priceField" promptText="6400"/>
+                    <Label fx:id="priceHint" styleClass="field-hint" wrapText="true"/>
+                    <Label fx:id="priceError" styleClass="field-error" wrapText="true"/>
+                </VBox>
+            </GridPane>
+
+            <Label text="* — обязательные поля" styleClass="field-hint"/>
+        </VBox>
+    </content>
+</DialogPane>
