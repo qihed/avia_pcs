@@ -9,6 +9,8 @@ import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 import ru.mirea.avia.fx.controller.BookingsController;
 import ru.mirea.avia.fx.controller.MainController;
+import ru.mirea.avia.fx.controller.FlightsController;
+import ru.mirea.avia.fx.controller.StatisticsController;
 import ru.mirea.avia.repository.BookingRepository;
 import ru.mirea.avia.repository.FlightRepository;
 import ru.mirea.avia.repository.JdbcBookingRepository;
@@ -47,11 +49,23 @@ public final class MainApp extends Application {
         FXMLLoader bookingsLoader = new FXMLLoader(getClass().getResource("/fxml/BookingsView.fxml"));
         BookingsController bookingsController = new BookingsController(bookings, new ExcelExporter());
         bookingsLoader.setController(bookingsController);
+        Parent bookingsView = bookingsLoader.load();
+
+        FXMLLoader flightsLoader = new FXMLLoader(getClass().getResource("/fxml/FlightsView.fxml"));
+        FlightsController flightsController = new FlightsController(flightService, bookings);
+        flightsLoader.setController(flightsController);
+        Parent flightsView = flightsLoader.load();
+
+        FXMLLoader statisticsLoader = new FXMLLoader(getClass().getResource("/fxml/StatisticsView.fxml"));
+        StatisticsController statisticsController = new StatisticsController(bookings);
+        statisticsLoader.setController(statisticsController);
+        Parent statisticsView = statisticsLoader.load();
 
         String env = System.getenv("AVIA_ENV");
         String target = database.getUrl().replace("jdbc:postgresql://", "");
         MainController main = mainLoader.getController();
-        main.show(bookingsLoader.load(), (env == null ? "ручной запуск" : env) + " · " + target);
+        main.setViews(bookingsView, flightsView, statisticsView);
+        main.show(bookingsView, (env == null ? "ручной запуск" : env) + " · " + target);
         // Формы пассажира и рейса; после сохранения таблица броней перечитывается (в ней видны ФИО и рейс).
         main.setForms(passengerService, flightService, bookingsController::refresh);
 
