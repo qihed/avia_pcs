@@ -43,6 +43,11 @@ public enum BookingStatus {
         return this != CANCELLED && this != EXPIRED;
     }
 
+    /** Бронь ещё в работе: не завершена, не отменена и не просрочена. */
+    public boolean isActive() {
+        return this == CREATED || this == PAID || this == CHECKED_IN;
+    }
+
     public String getTitle() { return title; }
     public String getShortTitle() { return shortTitle; }
 }

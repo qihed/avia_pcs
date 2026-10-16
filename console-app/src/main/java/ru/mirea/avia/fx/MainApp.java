@@ -9,6 +9,7 @@ import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 import ru.mirea.avia.fx.controller.BookingsController;
 import ru.mirea.avia.fx.controller.MainController;
+import ru.mirea.avia.fx.controller.PassengerViewController;
 import ru.mirea.avia.repository.BookingRepository;
 import ru.mirea.avia.repository.FlightRepository;
 import ru.mirea.avia.repository.JdbcBookingRepository;
@@ -47,13 +48,19 @@ public final class MainApp extends Application {
         FXMLLoader bookingsLoader = new FXMLLoader(getClass().getResource("/fxml/BookingsView.fxml"));
         BookingsController bookingsController = new BookingsController(bookings, passengerService, new ExcelExporter());
         bookingsLoader.setController(bookingsController);
+        FXMLLoader passengersLoader = new FXMLLoader(getClass().getResource("/fxml/PassengerView.fxml"));
+        PassengerViewController passengersController = new PassengerViewController(passengerService, bookings);
+        passengersLoader.setController(passengersController);
 
         String env = System.getenv("AVIA_ENV");
         String target = database.getUrl().replace("jdbc:postgresql://", "");
         MainController main = mainLoader.getController();
-        main.show(bookingsLoader.load(), (env == null ? "ручной запуск" : env) + " · " + target);
-        // Формы пассажира и рейса; после сохранения таблица броней перечитывается (в ней видны ФИО и рейс).
-        main.setForms(passengerService, flightService, bookingsController::refresh);
+        main.setConnection((env == null ? "ручной запуск" : env) + " · " + target);
+        // Экраны меню; при переходе на экран его данные перечитываются из БД.
+        main.addScreen("Бронирования", bookingsLoader.load(), bookingsController::refresh);
+        main.addScreen("Пассажиры", passengersLoader.load(), passengersController::refresh);
+        // Формы рейса (пока нет экрана «Рейсы»); после сохранения таблица броней перечитывается.
+        main.setForms(flightService, bookingsController::refresh);
 
         Scene scene = new Scene(root, 1360, 820);
         scene.getStylesheets().add(getClass().getResource("/css/app.css").toExternalForm());

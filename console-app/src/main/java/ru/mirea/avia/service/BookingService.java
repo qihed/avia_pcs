@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /** Прикладная логика бронирований — основной сущности системы. */
 public class BookingService {
@@ -86,6 +87,16 @@ public class BookingService {
     public List<Booking> list() throws SQLException {
         expireOutdated();
         return bookings.findAll();
+    }
+
+    /**
+     * Брони, сгруппированные по ID пассажира (ключ — ID пассажира, значение — его брони по дате вылета).
+     * Экран «Пассажиры» берёт отсюда и число броней в таблице, и брони выбранного пассажира — за один запрос.
+     */
+    public Map<Long, List<Booking>> bookingsByPassenger() throws SQLException {
+        return list().stream()
+                .sorted(Comparator.comparing(b -> b.getFlight().getDepartureTime()))
+                .collect(Collectors.groupingBy(b -> b.getPassenger().getId()));
     }
 
     /** Бронь по ID; бронь, которая к этому моменту просрочена, уже будет в статусе EXPIRED. */

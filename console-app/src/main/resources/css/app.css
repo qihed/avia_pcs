@@ -67,6 +67,11 @@
 .details-scroll { -fx-background-color: transparent; -fx-background: -app-bg; }
 .details-scroll > .viewport { -fx-background-color: transparent; }
 
+/* Экран из двух частей (PassengerView): таблица сверху, связанные записи снизу, границу можно тянуть. */
+.view-split { -fx-background-color: transparent; -fx-box-border: transparent; }
+.view-split > .split-pane-divider { -fx-background-color: transparent; -fx-padding: 4 0 4 0; }
+.split-bottom { -fx-padding: 10 0 0 0; }
+
 /* ---------- кнопки ---------- */
 
 .btn-primary, .btn-secondary, .btn-danger {

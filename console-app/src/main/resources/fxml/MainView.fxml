@@ -8,7 +8,7 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
-<!-- Каркас окна: меню слева, экран по центру, подключение к БД снизу. Новые экраны — новые кнопки в меню. -->
+<!-- Каркас окна: меню слева, экран по центру, подключение к БД снизу. Экраны добавляются в MainApp. -->
 <BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="ru.mirea.avia.fx.controller.MainController" styleClass="main-pane">
     <left>
@@ -17,12 +17,11 @@
                 <Label text="АВИАБРОНИРОВАНИЕ" styleClass="brand-title"/>
                 <Label text="Система бронирования билетов" styleClass="brand-subtitle" wrapText="true"/>
             </VBox>
-            <Button text="Бронирования" styleClass="nav-button" maxWidth="Infinity"/>
-            <!-- Временно, пока нет экранов «Пассажиры» и «Рейсы»: формы открываются прямо из меню. -->
+            <!-- Кнопки экранов добавляет MainController.addScreen (см. MainApp). -->
+            <VBox fx:id="navBox" spacing="4"/>
+            <!-- Временно, пока нет экрана «Рейсы»: формы рейса открываются прямо из меню. -->
             <VBox spacing="4">
                 <Label text="ФОРМЫ" styleClass="sidebar-caption"/>
-                <Button text="Новый пассажир" styleClass="nav-link" maxWidth="Infinity" onAction="#onNewPassenger"/>
-                <Button text="Изменить пассажира" styleClass="nav-link" maxWidth="Infinity" onAction="#onEditPassenger"/>
                 <Button text="Новый рейс" styleClass="nav-link" maxWidth="Infinity" onAction="#onNewFlight"/>
                 <Button text="Изменить рейс" styleClass="nav-link" maxWidth="Infinity" onAction="#onEditFlight"/>
             </VBox>

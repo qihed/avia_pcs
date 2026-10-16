@@ -59,6 +59,25 @@ public class PassengerService {
         return repository.count();
     }
 
+    /** Возвращает пассажира, если его можно удалить; экран вызывает до запроса подтверждения. */
+    public Passenger requireDeletable(long id) throws SQLException {
+        Passenger passenger = get(id);
+        int bookings = repository.countBookings(id);
+        // Бизнес-правило: пассажира, на которого оформлены брони, удалить нельзя (в БД то же держит внешний ключ).
+        if (bookings > 0) {
+            throw new BusinessException("Нельзя удалить пассажира " + passenger.getShortName()
+                    + ": на него оформлено броней — " + bookings + ". Сначала удалите его брони.");
+        }
+        return passenger;
+    }
+
+    public void delete(long id) throws SQLException {
+        requireDeletable(id);
+        if (!repository.deleteById(id)) {
+            throw new EntityNotFoundException("Пассажир с ID " + id + " не найден");
+        }
+    }
+
     /**
      * Проверка соответствия типа документа возрасту. Возвращает текст ошибки или {@code null}, если всё в порядке —
      * этим же методом пользуется форма пассажира, чтобы показать ошибку прямо у поля.
