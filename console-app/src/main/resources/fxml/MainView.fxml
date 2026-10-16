@@ -17,7 +17,9 @@
                 <Label text="АВИАБРОНИРОВАНИЕ" styleClass="brand-title"/>
                 <Label text="Система бронирования билетов" styleClass="brand-subtitle" wrapText="true"/>
             </VBox>
-            <Button text="Бронирования" styleClass="nav-button" maxWidth="Infinity"/>
+            <Button text="Бронирования" styleClass="nav-button" maxWidth="Infinity" onAction="#onBookings"/>
+            <Button text="Рейсы" styleClass="nav-link" maxWidth="Infinity" onAction="#onFlights"/>
+            <Button text="Статистика" styleClass="nav-link" maxWidth="Infinity" onAction="#onStatistics"/>
             <!-- Временно, пока нет экранов «Пассажиры» и «Рейсы»: формы открываются прямо из меню. -->
             <VBox spacing="4">
                 <Label text="ФОРМЫ" styleClass="sidebar-caption"/>

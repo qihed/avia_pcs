@@ -26,6 +26,9 @@ public final class MainController {
     @FXML private Label statusMessage;
 
     private PassengerService passengers;
+    private Parent bookingsView;
+    private Parent flightsView;
+    private Parent statisticsView;
     private FlightService flights;
     /** Что обновить после сохранения формы (например, таблицу броней — в ней видны пассажир и рейс). */
     private Runnable afterSave = () -> { };
@@ -34,6 +37,17 @@ public final class MainController {
         contentPane.getChildren().setAll(view);
         connectionBadge.setText(connection);
     }
+
+    /** Подключает основные экраны к навигации слева. */
+    public void setViews(Parent bookingsView, Parent flightsView, Parent statisticsView) {
+        this.bookingsView = bookingsView;
+        this.flightsView = flightsView;
+        this.statisticsView = statisticsView;
+    }
+
+    @FXML private void onBookings() { if (bookingsView != null) contentPane.getChildren().setAll(bookingsView); }
+    @FXML private void onFlights() { if (flightsView != null) contentPane.getChildren().setAll(flightsView); }
+    @FXML private void onStatistics() { if (statisticsView != null) contentPane.getChildren().setAll(statisticsView); }
 
     /** Подключает формы пассажира и рейса к пунктам меню. */
     public void setForms(PassengerService passengers, FlightService flights, Runnable afterSave) {
