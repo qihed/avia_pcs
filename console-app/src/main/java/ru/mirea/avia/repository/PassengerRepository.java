@@ -105,6 +105,28 @@ public class PassengerRepository {
         }
     }
 
+    public boolean deleteById(long id) throws SQLException {
+        String sql = "DELETE FROM passengers WHERE id = ?";
+        try (Connection connection = database.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setLong(1, id);
+            return statement.executeUpdate() > 0;
+        }
+    }
+
+    /** Сколько броней (в любом статусе) оформлено на пассажира. */
+    public int countBookings(long passengerId) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM bookings WHERE passenger_id = ?";
+        try (Connection connection = database.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setLong(1, passengerId);
+            try (ResultSet rs = statement.executeQuery()) {
+                rs.next();
+                return rs.getInt(1);
+            }
+        }
+    }
+
     public long count() throws SQLException {
         String sql = "SELECT COUNT(*) FROM passengers";
         try (Connection connection = database.getConnection();
