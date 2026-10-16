@@ -1,5 +1,10 @@
 package ru.mirea.avia.fx.controller;
 
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.DateCell;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.TextField;
@@ -10,12 +15,16 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 import java.util.Locale;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
-/** Мелкие помощники для полей форм: ограничение ввода, формат дат и времени, подписи enum в ComboBox. */
+/**
+ * Мелкие помощники для полей форм: ограничение ввода, формат дат и времени, подписи enum в ComboBox,
+ * ComboBox с поиском.
+ */
 public final class FormFields {
     public static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("H:mm");
@@ -115,5 +124,60 @@ public final class FormFields {
                 return null;
             }
         };
+    }
+
+    /**
+     * ComboBox с поиском: в поле можно печатать, и список сужается до записей, в подписи которых есть
+     * введённый текст (без учёта регистра). Значением становится только запись из списка: произвольный
+     * текст при уходе из поля даёт {@code null}, и форма покажет «выберите …».
+     */
+    public static <T> void searchable(ComboBox<T> combo, List<T> items, Function<T, String> title) {
+        ObservableList<T> source = FXCollections.observableArrayList(items);
+        FilteredList<T> filtered = new FilteredList<>(source);
+        combo.setItems(filtered);
+        combo.setEditable(true);
+        combo.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(T value) {
+                return value == null ? "" : title.apply(value);
+            }
+
+            @Override
+            public T fromString(String text) {
+                return source.stream().filter(item -> title.apply(item).equals(text)).findFirst().orElse(null);
+            }
+        });
+
+        TextField editor = combo.getEditor();
+        // internal — текст или список меняет сам помощник, а не пользователь; typed — последний набранный текст.
+        var state = new Object() { boolean internal; String typed = ""; };
+        editor.textProperty().addListener((o, old, text) -> {
+            if (state.internal || text == null) return;
+            T value = combo.getValue();
+            if (value != null && title.apply(value).equals(text)) return;  // это подпись выбранной записи
+            state.typed = text;
+            // Список меняется после текущего события ввода; при этом ComboBox может стереть текст — возвращаем его.
+            Platform.runLater(() -> {
+                String query = state.typed;
+                String needle = query.trim().toLowerCase(RU);
+                state.internal = true;
+                filtered.setPredicate(item -> title.apply(item).toLowerCase(RU).contains(needle));
+                if (!query.equals(editor.getText())) {
+                    editor.setText(query);
+                    editor.positionCaret(query.length());
+                }
+                state.internal = false;
+                if (editor.isFocused() && !combo.isShowing() && !filtered.isEmpty()) combo.show();
+            });
+        });
+        // После закрытия списка снова видны все записи. ComboBox при этом может сбросить выбор — восстанавливаем.
+        combo.setOnHidden(e -> {
+            if (filtered.getPredicate() == null) return;
+            T value = combo.getValue();
+            state.internal = true;
+            filtered.setPredicate(null);
+            combo.setValue(value);
+            state.internal = false;
+        });
     }
 }

@@ -47,7 +47,7 @@ public final class MainApp extends Application {
         FXMLLoader mainLoader = new FXMLLoader(getClass().getResource("/fxml/MainView.fxml"));
         Parent root = mainLoader.load();
         FXMLLoader bookingsLoader = new FXMLLoader(getClass().getResource("/fxml/BookingsView.fxml"));
-        BookingsController bookingsController = new BookingsController(bookings, new ExcelExporter());
+        BookingsController bookingsController = new BookingsController(bookings, passengerService, new ExcelExporter());
         bookingsLoader.setController(bookingsController);
         Parent bookingsView = bookingsLoader.load();
 

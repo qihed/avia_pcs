@@ -22,9 +22,9 @@
             <HBox alignment="CENTER_LEFT" spacing="8">
                 <Label text="Бронирования" styleClass="view-title"/>
                 <Region HBox.hgrow="ALWAYS"/>
-                <Button text="Добавить" styleClass="btn-primary" onAction="#onFormNotReady"/>
-                <Button fx:id="editButton" text="Изменить" styleClass="btn-secondary" onAction="#onFormNotReady"/>
-                <Button fx:id="statusButton" text="Сменить статус" styleClass="btn-secondary" onAction="#onFormNotReady"/>
+                <Button text="Добавить" styleClass="btn-primary" onAction="#onAdd"/>
+                <Button fx:id="editButton" text="Изменить" styleClass="btn-secondary" onAction="#onEdit"/>
+                <Button fx:id="statusButton" text="Сменить статус" styleClass="btn-secondary" onAction="#onChangeStatus"/>
                 <Button fx:id="deleteButton" text="Удалить" styleClass="btn-danger" onAction="#onDelete"/>
                 <Button text="Обновить" styleClass="btn-secondary" onAction="#onRefresh"/>
                 <Button text="Экспорт в Excel" styleClass="btn-secondary" onAction="#onExport"/>

@@ -12,6 +12,7 @@ import ru.mirea.avia.repository.FlightRepository;
 import ru.mirea.avia.repository.PassengerRepository;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -27,6 +28,8 @@ public class BookingService {
     private static final Pattern SEAT = Pattern.compile("^[0-9]{1,2}[A-F]$");
     private static final Duration CANCEL_LIMIT = Duration.ofHours(2);
     private static final Duration EXPIRE_AFTER = Duration.ofMinutes(30);
+    /** NUMERIC(10,2) в таблице bookings. */
+    public static final BigDecimal MAX_PRICE = new BigDecimal("99999999.99");
 
     private final BookingRepository bookings;
     private final PassengerRepository passengers;
@@ -46,11 +49,37 @@ public class BookingService {
         Flight flight = requireFlight(flightId);
         String seat = normalizeSeat(seatNumber);
         checkOpenForSale(flight);
+        checkCapacity(flight);
         checkSeatFree(flight, seat, null);
         checkNoDuplicateBooking(passenger, flight);
+        checkFareClass(fareClass);
         checkPrice(price);
         Booking booking = new Booking(passenger, flight, seat, fareClass, price);
         return bookings.create(booking);
+    }
+
+    /** Рейсы, на которые сейчас можно оформить бронь: открыты для продажи и ещё не вылетели. */
+    public List<Flight> bookableFlights() throws SQLException {
+        LocalDateTime now = LocalDateTime.now();
+        return flights.findAll().stream()
+                .filter(f -> f.getStatus().isOpenForSale())
+                .filter(f -> f.getDepartureTime().isAfter(now))
+                .sorted(Comparator.comparing(Flight::getDepartureTime))
+                .toList();
+    }
+
+    /** Свободные места на рейсе: вместимость минус активные брони. */
+    public int freeSeats(Flight flight) throws SQLException {
+        long active = bookings.findAll().stream()
+                .filter(b -> b.getFlight().getId() == flight.getId())
+                .filter(b -> b.getStatus().occupiesSeat())
+                .count();
+        return flight.getTotalSeats() - (int) active;
+    }
+
+    /** Стоимость по тарифу: базовый тариф рейса × коэффициент класса, округление до копеек. */
+    public BigDecimal suggestPrice(Flight flight, FareClass fareClass) {
+        return flight.getBasePrice().multiply(fareClass.getCoefficient()).setScale(2, RoundingMode.HALF_UP);
     }
 
     /** Все брони; перед выводом просроченные аннулируются, чтобы статусы были актуальны. */
@@ -71,6 +100,7 @@ public class BookingService {
         // Правила проверяются заново: между вводом и сохранением данные могли измениться.
         Booking booking = requireEditable(id);
         String seat = validateSeatChange(booking, seatNumber);
+        checkFareClass(fareClass);
         checkPrice(price);
         booking.setSeatNumber(seat);
         booking.setFareClass(fareClass);
@@ -230,11 +260,21 @@ public class BookingService {
         return normalized;
     }
 
-    /** Бизнес-правило: бронировать можно только рейс, открытый для продажи. */
+    /** Бизнес-правило: бронировать можно только рейс, открытый для продажи и ещё не вылетевший. */
     private void checkOpenForSale(Flight flight) {
         if (!flight.getStatus().isOpenForSale()) {
             throw new BusinessException("Рейс " + flight.getFlightNumber() + " закрыт для продажи (статус «"
                     + flight.getStatus().getTitle() + "»)");
+        }
+        if (!flight.getDepartureTime().isAfter(LocalDateTime.now())) {
+            throw new BusinessException("Рейс " + flight.getFlightNumber() + " уже вылетел");
+        }
+    }
+
+    /** Бизнес-правило: число активных броней не может превышать вместимость рейса. */
+    private void checkCapacity(Flight flight) throws SQLException {
+        if (freeSeats(flight) <= 0) {
+            throw new BusinessException("На рейсе " + flight.getFlightNumber() + " нет свободных мест");
         }
     }
 
@@ -262,10 +302,20 @@ public class BookingService {
         }
     }
 
-    /** Бизнес-правило: цена билета должна быть положительной. */
+    private void checkFareClass(FareClass fareClass) {
+        if (fareClass == null) {
+            throw new BusinessException("Класс обслуживания не выбран");
+        }
+    }
+
+    /** Бизнес-правило: цена билета положительная и помещается в NUMERIC(10,2). */
     private void checkPrice(BigDecimal price) {
         if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException("Стоимость билета должна быть больше нуля");
+        }
+        if (price.scale() > 2 || price.compareTo(MAX_PRICE) > 0) {
+            throw new BusinessException("Стоимость билета: не больше " + MAX_PRICE.toPlainString()
+                    + " руб. и не больше двух знаков после запятой");
         }
     }
 
