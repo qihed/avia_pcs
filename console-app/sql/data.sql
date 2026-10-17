@@ -10,15 +10,15 @@ INSERT INTO passengers
     (last_name, first_name, middle_name, birth_date,
      document_type, document_number, email, phone) VALUES
 ('Иванов',    'Иван',  'Иванович',   DATE '1985-04-12',
- 'PASSPORT_RF',            '4510123456',     'ivanov@example.com',     '+79161001122'),
+ 'PASSPORT_RF',            '4510123456',     'ivanov@mail.ru',     '+79161001122'),
 ('Петрова',   'Анна',  'Сергеевна',  DATE '1992-11-03',
- 'PASSPORT_RF',            '4512654321',     'petrova@example.com',    '+79162003344'),
+ 'PASSPORT_RF',            '4512654321',     'petrova@gmail.com',    '+79162003344'),
 ('Сидоров',   'Пётр',  'Николаевич', DATE '1988-03-14',
- 'PASSPORT_RF',            '4512889967',     'sidorov@example.com',    '+79163005566'),
+ 'PASSPORT_RF',            '4512889967',     'sidorov@yandex.ru',    '+79163005566'),
 ('Кузнецова', 'Мария', 'Олеговна',   DATE '1979-07-22',
- 'INTERNATIONAL_PASSPORT', '750123456',      'kuznetsova@example.com', '+79164007788'),
+ 'INTERNATIONAL_PASSPORT', '750123456',      'kuznetsova@mail.ru', '+79164007788'),
 ('Соколов',   'Артём', 'Дмитриевич', DATE '2016-09-30',
- 'BIRTH_CERTIFICATE',      'VIII-MU-123456', 'sokolov@example.com',    '+79165009900');
+ 'BIRTH_CERTIFICATE',      'VIII-MU-123456', 'sokolov@gmail.com',    '+79165009900');
 
 INSERT INTO flights
     (flight_number, airline, departure_airport, arrival_airport,

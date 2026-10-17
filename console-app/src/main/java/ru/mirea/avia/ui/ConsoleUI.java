@@ -182,7 +182,7 @@ public class ConsoleUI {
 
         var birthDate = input.birthDate("Дата рождения");
         DocumentType type = input.choice("Тип документа", DOCUMENT_TYPES, DocumentType::getTitle);
-        String documentNumber = input.required("Номер документа");
+        String documentNumber = input.required("Номер документа").replace(" ", "");   // «4510 123456» тоже принимается
         String email = input.email("E-mail");
         String phone = input.phone("Телефон");
 

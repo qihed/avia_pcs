@@ -94,7 +94,7 @@ public final class PassengerFormController implements FormDialogs.Form<Passenger
         FormFields.restrict(lastNameField, "[\\p{L}-]{0," + MAX_NAME + "}");
         FormFields.restrict(firstNameField, "[\\p{L}-]{0," + MAX_NAME + "}");
         FormFields.restrict(middleNameField, "[\\p{L}-]{0," + MAX_NAME + "}");
-        FormFields.upperCase(documentNumberField, "[\\p{L}\\d-]{0,20}");
+        FormFields.documentNumber(documentNumberField, documentTypeCombo.valueProperty());
         FormFields.restrict(emailField, "\\S{0,120}");
         FormFields.digits(phoneField, 15);
 
@@ -131,7 +131,7 @@ public final class PassengerFormController implements FormDialogs.Form<Passenger
         String firstName = FormFields.text(firstNameField);
         String middleName = FormFields.text(middleNameField);
         DocumentType type = documentTypeCombo.getValue();
-        String documentNumber = FormFields.text(documentNumberField);
+        String documentNumber = FormFields.text(documentNumberField).replace(" ", "");   // пробел в паспорте РФ — только для вида
         String email = FormFields.text(emailField);
         String phone = FormFields.text(phoneField);
 
@@ -162,7 +162,7 @@ public final class PassengerFormController implements FormDialogs.Form<Passenger
         if (email.isEmpty()) {
             errors.set(emailField, "Укажите e-mail.");
         } else if (!Validators.isValidEmail(email)) {
-            errors.set(emailField, "Нужен символ @ и окончание .ru или .com, например ivan@mail.ru.");
+            errors.set(emailField, Validators.EMAIL_HINT);
         }
         if (phone.isEmpty()) {
             errors.set(phoneField, "Укажите телефон.");

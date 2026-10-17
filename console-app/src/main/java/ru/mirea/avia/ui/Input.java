@@ -111,12 +111,12 @@ public class Input {
         }
     }
 
-    /** E-mail с символом @ и окончанием .com или .ru; при ошибке повторяется только этот вопрос. */
+    /** E-mail известного почтового сервиса (gmail.com, mail.ru и т.п.); при ошибке повторяется только этот вопрос. */
     public String email(String prompt) {
         while (true) {
             String value = required(prompt);
             if (Validators.isValidEmail(value)) return value;
-            System.out.println("Ошибка: нужен символ @ и окончание .com или .ru (например, ivan@mail.ru).");
+            System.out.println("Ошибка: " + Validators.EMAIL_HINT);
         }
     }
 

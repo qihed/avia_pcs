@@ -1,6 +1,7 @@
 package ru.mirea.avia.fx.controller;
 
 import javafx.application.Platform;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -10,6 +11,7 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.util.StringConverter;
+import ru.mirea.avia.model.DocumentType;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -54,6 +56,39 @@ public final class FormFields {
             change.setText(change.getText().toUpperCase(RU));
             return pattern.matcher(change.getControlNewText()).matches() ? change : null;
         }));
+    }
+
+    /**
+     * Номер документа. Для паспорта РФ — только цифры (до 10) и пробел после серии, который ставится сам:
+     * «4510 123456». Для остальных типов — буквы, цифры и дефис в верхнем регистре, до 20 символов.
+     * Пробел нужен только для вида: перед проверкой и сохранением его убирают.
+     */
+    public static void documentNumber(TextField field, ObservableValue<DocumentType> type) {
+        Pattern other = Pattern.compile("[\\p{L}\\d-]{0,20}");
+        field.setTextFormatter(new TextFormatter<String>(change -> {
+            if (!change.isContentChange()) return change;   // только перемещение курсора или выделение
+            if (type.getValue() == DocumentType.PASSPORT_RF) {
+                String digits = change.getControlNewText().replaceAll("\\D", "");
+                if (digits.length() > 10) return null;
+                String text = passportRf(digits, !change.getText().isEmpty());
+                change.setRange(0, change.getControlText().length());
+                change.setText(text);
+                change.selectRange(text.length(), text.length());
+                return change;
+            }
+            change.setText(change.getText().toUpperCase(RU));
+            return other.matcher(change.getControlNewText()).matches() ? change : null;
+        }));
+        // При смене типа документа текст приводится к формату нового типа.
+        type.addListener((o, old, now) -> {
+            if (field.getText() != null) field.setText(field.getText().replace(" ", ""));
+        });
+    }
+
+    /** «4510» + пробел + «123456». Сразу после четвёртой цифры пробел ставится при вводе, но не при стирании. */
+    private static String passportRf(String digits, boolean adding) {
+        if (digits.length() > 4) return digits.substring(0, 4) + " " + digits.substring(4);
+        return digits.length() == 4 && adding ? digits + " " : digits;
     }
 
     /** Текст поля без пробелов по краям; пустая строка вместо null. */
