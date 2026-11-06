@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:avia;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+
+app:
+  jwt:
+    secret-base64: dGVzdC1zZWNyZXQtZm9yLWF2aWEtYmFja2VuZC10ZXN0cy0xMjM0NTY3ODkwMTI=
+    issuer: avia-test
+  bootstrap:
+    email: admin@example.org
+    name: Test Admin
+    password: Temp1!Password
+  security:
+    max-failed-attempts: 3
+    lock-minutes: 15
