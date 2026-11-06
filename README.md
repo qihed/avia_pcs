@@ -121,3 +121,25 @@ docker compose exec -T db sh -c 'psql -q -U "$POSTGRES_USER" -d "$POSTGRES_DB"' 
 - ER-диаграмма базы данных — `docs/er-diagram.svg`;
 - экспортированный Excel-файл — создаётся пунктом меню «Экспорт в Excel»;
 - инструкция по запуску — раздел «Запуск» выше.
+
+## Backend и web (КР №3)
+
+REST API на Spring Boot + PostgreSQL (Flyway) и React-клиент. Подробности по ролям и эндпоинтам — в Swagger.
+
+```bash
+cp .env.example .env   # задать пароли и секрет: openssl rand -base64 48
+docker compose --env-file .env -f backend/docker-compose.yml up -d --build --wait   # Windows: backend\start-compose.ps1
+cd web && npm install && npm run dev                                                 # http://localhost:5173
+```
+
+| Что | Адрес |
+|---|---|
+| REST API / Swagger / health | http://localhost:8080/api · /swagger-ui.html · /actuator/health |
+| PostgreSQL (из IDE, psql) | localhost:55432 |
+| Web (dev-сервер, проксирует /api) | http://localhost:5173 |
+
+- Вход: логин и временный пароль из `BOOTSTRAP_ADMIN_*` в `.env`; при первом входе требуется смена пароля.
+- Роли вложены: `VIEWER` (чтение) < `EDITOR` (изменение) < `ADMIN` (справочники, пользователи, аудит, окончательное удаление). Права по URL — в `backend/.../config/SecurityConfig.java`.
+- Схема БД — только через Flyway (`backend/src/main/resources/db/migration`): V1 — схема КР1, V2 — все новые таблицы и поля. Новое поле — миграция V3+ у лида.
+- Тесты: `cd backend && ./mvnw test` (JDK 21, H2).
+- Страницы web подключаются в `web/src/routes.tsx` (замените `<Placeholder>` на свой компонент).
