@@ -169,9 +169,9 @@ class AuthFlowTest {
                 .andExpect(jsonPath("$.mustChangePassword").value(false));
         String newToken = field(changed, "$.accessToken");
 
-        // эндпоинта пока нет: 404 означает, что защита пропустила запрос
+        // после смены пароля админка доступна
         mvc.perform(get("/api/admin/users").header("Authorization", "Bearer " + newToken))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
         login(login, PASSWORD).andExpect(status().isUnauthorized());
         login(login, "N3w!Passw0rdXyz").andExpect(status().isOk());
     }

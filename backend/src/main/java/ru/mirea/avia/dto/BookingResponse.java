@@ -19,7 +19,8 @@ public record BookingResponse(
   long version,
   LocalDateTime createdAt,
   LocalDateTime updatedAt,
-  UrgencyLevel urgencyLevel
+  UrgencyLevel urgencyLevel,
+  java.util.List<String> tags
 ) {
   public static BookingResponse of(Booking b, Clock clock) {
     return new BookingResponse(
@@ -41,7 +42,8 @@ public record BookingResponse(
         b.archived,
         b.flight.departureTime,
         clock
-      )
+      ),
+      java.util.List.copyOf(b.tags)
     );
   }
 }

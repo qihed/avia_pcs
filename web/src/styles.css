@@ -263,3 +263,193 @@ dd {
     padding: 0;
   }
 }
+
+/* Списки: фильтры, сортировка, пагинация, состояния (админка пользователей, список броней) */
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  align-items: end;
+  padding: 16px;
+}
+.filters .field input,
+.filters .field select {
+  width: 100%;
+  padding: 9px 10px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+}
+.inline-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.inline-field select {
+  padding: 6px 8px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+}
+.sort-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sort-button.active {
+  color: var(--accent);
+}
+tr.selected td {
+  background: var(--accent-soft);
+}
+.chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+.chip.ok {
+  color: var(--ok);
+}
+.chip.off,
+.chip.warn {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: transparent;
+}
+.secret {
+  border-color: var(--accent);
+}
+.secret-value {
+  font-size: 1.1rem;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+.pager {
+  font-size: 0.9rem;
+}
+.filters .wide {
+  grid-column: span 2;
+}
+.filters input[type='date'] {
+  min-height: 40px;
+}
+.status-filter {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.status-filter legend {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0;
+  margin-bottom: 6px;
+}
+.chip.toggle {
+  position: relative;
+  cursor: pointer;
+  padding: 5px 12px;
+  font-size: 0.85rem;
+}
+.chip.toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.chip.toggle.on {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.chip.toggle:focus-within {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.filter-actions {
+  grid-column: 1 / -1;
+}
+button.chip,
+.chip.tag {
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+button.chip {
+  cursor: pointer;
+}
+.chip-remove {
+  margin-left: 4px;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.bulk-bar {
+  position: sticky;
+  top: 8px;
+  z-index: 1;
+  padding: 12px 16px;
+  border-color: var(--accent);
+}
+.bulk-bar select,
+.bulk-input {
+  padding: 8px 10px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  min-width: 0;
+}
+.bulk-result.partial {
+  border-color: var(--danger);
+}
+.failures {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+th.check,
+td.check {
+  width: 36px;
+  padding-right: 0;
+}
+td.num {
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .filters .wide {
+    grid-column: 1 / -1;
+  }
+}

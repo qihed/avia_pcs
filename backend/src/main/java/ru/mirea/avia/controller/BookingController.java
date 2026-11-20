@@ -2,11 +2,24 @@ package ru.mirea.avia.controller;
 
 import jakarta.validation.Valid;
 import java.util.*;
-import org.springframework.data.domain.Page;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import ru.mirea.avia.config.AppProperties;
 import ru.mirea.avia.domain.BookingNote;
+import ru.mirea.avia.domain.BookingStatus;
+import ru.mirea.avia.domain.FareClass;
+import ru.mirea.avia.domain.UrgencyLevel;
 import ru.mirea.avia.dto.*;
+import ru.mirea.avia.dto.BookingBulkDtos.BulkRequest;
+import ru.mirea.avia.dto.BookingBulkDtos.BulkResult;
+import ru.mirea.avia.dto.BookingBulkDtos.TagUsage;
+import ru.mirea.avia.dto.BookingBulkDtos.TagsRequest;
+import ru.mirea.avia.filter.BookingFilter;
+import ru.mirea.avia.filter.BookingSpecifications;
+import ru.mirea.avia.filter.PageRequests;
 import ru.mirea.avia.service.*;
 
 @RestController
@@ -15,19 +28,94 @@ public class BookingController {
 
   private final BookingService bookings;
   private final BookingNoteService notes;
+  private final AppProperties props;
 
-  public BookingController(BookingService b, BookingNoteService n) {
+  public BookingController(
+    BookingService b,
+    BookingNoteService n,
+    AppProperties a
+  ) {
     bookings = b;
     notes = n;
+    props = a;
   }
 
+  /**
+   * Поиск, фильтры, сортировка, пагинация. Пример:
+   * /api/items?q=иванов su&status=CREATED&status=PAID&fareClass=ECONOMY&tag=vip&urgency=HIGH
+   * &priceMin=1000&priceMax=20000&departureFrom=2026-12-01&departureTo=2026-12-31&extraBaggage=true
+   * &sort=price,desc&page=0&size=20
+   */
   @GetMapping
-  public Page<BookingResponse> list(
+  public PageResponse<BookingResponse> list(
+    @RequestParam(required = false) String q,
     @RequestParam(defaultValue = "false") boolean archived,
+    @RequestParam(name = "status", required = false) List<BookingStatus> statuses,
+    @RequestParam(required = false) FareClass fareClass,
+    @RequestParam(required = false) UUID flightId,
+    @RequestParam(required = false) UUID passengerId,
+    @RequestParam(name = "tag", required = false) List<String> tags,
+    @RequestParam(required = false) UrgencyLevel urgency,
+    @RequestParam(required = false) BigDecimal priceMin,
+    @RequestParam(required = false) BigDecimal priceMax,
+    @RequestParam(required = false) @DateTimeFormat(
+      iso = DateTimeFormat.ISO.DATE
+    ) LocalDate departureFrom,
+    @RequestParam(required = false) @DateTimeFormat(
+      iso = DateTimeFormat.ISO.DATE
+    ) LocalDate departureTo,
+    @RequestParam(required = false) Boolean extraBaggage,
     @RequestParam(defaultValue = "0") int page,
-    @RequestParam(defaultValue = "20") int size
+    @RequestParam(required = false) Integer size,
+    @RequestParam(required = false) String sort
   ) {
-    return bookings.list(archived, page, size);
+    BookingFilter filter = new BookingFilter(
+      q,
+      archived,
+      statuses,
+      fareClass,
+      flightId,
+      passengerId,
+      tags,
+      urgency,
+      priceMin,
+      priceMax,
+      departureFrom,
+      departureTo,
+      extraBaggage
+    );
+    return bookings.list(
+      filter,
+      PageRequests.of(
+        page,
+        size == null ? props.pagination().defaultPageSize() : size,
+        sort,
+        props.pagination().maxPageSize(),
+        BookingSpecifications.SORT_FIELDS,
+        BookingSpecifications.DEFAULT_SORT,
+        "id"
+      )
+    );
+  }
+
+  /** Все теги текущих броней с количеством — для подсказок в форме и фильтре. */
+  @GetMapping("/tags")
+  public List<TagUsage> tags() {
+    return bookings.tagUsage();
+  }
+
+  @PutMapping("/{id}/tags")
+  public BookingResponse setTags(
+    @PathVariable UUID id,
+    @Valid @RequestBody TagsRequest r
+  ) {
+    return bookings.setTags(id, r.tags(), r.version());
+  }
+
+  /** Массовая операция: ADD_TAG, REMOVE_TAG, SET_STATUS, ARCHIVE, RESTORE. */
+  @PostMapping("/bulk")
+  public BulkResult bulk(@Valid @RequestBody BulkRequest r) {
+    return bookings.bulk(r);
   }
 
   @GetMapping("/{id}")
