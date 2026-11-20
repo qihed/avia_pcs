@@ -186,17 +186,17 @@ class AuthFlowTest {
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
         mvc.perform(get("/api/items").header("Authorization", "Bearer garbage")).andExpect(status().isUnauthorized());
 
-        // чтение: любой авторизованный; 404 = защита пройдена, контроллера ещё нет
-        mvc.perform(get("/api/items").header("Authorization", "Bearer " + viewer)).andExpect(status().isNotFound());
+        // Чтение доступно VIEWER; после проверки роли контроллер проверяет тело запроса.
+        mvc.perform(get("/api/items").header("Authorization", "Bearer " + viewer)).andExpect(status().isOk());
         // изменение: EDITOR и выше
         mvc.perform(post("/api/items").header("Authorization", "Bearer " + viewer)).andExpect(status().isForbidden());
-        mvc.perform(post("/api/items").header("Authorization", "Bearer " + editor)).andExpect(status().isNotFound());
+        mvc.perform(post("/api/items").header("Authorization", "Bearer " + editor)).andExpect(status().isBadRequest());
         // окончательное удаление, справочники, админка: только ADMIN
         String id = UUID.randomUUID().toString();
         mvc.perform(delete("/api/items/" + id + "/permanent").header("Authorization", "Bearer " + editor))
                 .andExpect(status().isForbidden());
         mvc.perform(delete("/api/items/" + id + "/permanent").header("Authorization", "Bearer " + admin))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isBadRequest());
         mvc.perform(post("/api/references").header("Authorization", "Bearer " + editor)).andExpect(status().isForbidden());
         mvc.perform(get("/api/admin/audit").header("Authorization", "Bearer " + editor)).andExpect(status().isForbidden());
         mvc.perform(get("/api/admin/audit").header("Authorization", "Bearer " + admin)).andExpect(status().isNotFound());
