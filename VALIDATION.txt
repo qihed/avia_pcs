@@ -1,0 +1,25 @@
+Проверено 20.11.2026
+
+JDK: Temurin 21.0.13.1
+Backend: Maven package — BUILD SUCCESS
+Tests run: 72, Failures: 0, Errors: 0, Skipped: 0
+UrgencyLevelTest: 27 тестовых случаев
+BookingApiTest: 6 интеграционных сценариев
+Ранее существующие тесты: 39
+
+Frontend: TypeScript + Vite production build — PASS
+PostgreSQL 18: Flyway V1/V2 и Hibernate validate — PASS
+Конкурентные запросы одного места: 201 + 409 — PASS
+
+Chrome headless, реальный backend и отдельная PostgreSQL:
+- Вход и загрузка данных — PASS
+- Создание и изменение брони — PASS
+- Создание закреплённой заметки — PASS
+- Отмена, архивирование и восстановление — PASS
+- Изменение пассажира — PASS
+- Отключение рейса — PASS
+- Мобильный экран 390×844 без горизонтального выхода страницы — PASS
+- Необработанных JavaScript-ошибок: 0
+
+Production PostgreSQL 16 из Docker отдельно не запускалась; проверка реальной СУБД проведена на установленной PostgreSQL 18 в изолированном кластере.
+Пороги UrgencyLevel приняты как допущение, см. TASKS_TEMIR.md.
