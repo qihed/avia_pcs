@@ -60,12 +60,12 @@ class AuthFlowTest {
 
     @Test
     void loginReturnsTokensAndMe() throws Exception {
-        String login = createUser(Role.VIEWER, true, false);
+        String login = createUser(Role.MODERATOR, true, false);
         ResultActions result = login(login, PASSWORD).andExpect(status().isOk())
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.refreshToken").isNotEmpty())
                 .andExpect(jsonPath("$.user.passwordHash").doesNotExist())
-                .andExpect(jsonPath("$.user.roles[0]").value("VIEWER"));
+                .andExpect(jsonPath("$.user.roles[0]").value("MODERATOR"));
         String token = field(result, "$.accessToken");
 
         mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
@@ -75,7 +75,7 @@ class AuthFlowTest {
 
     @Test
     void wrongPasswordIsUnauthorizedWithUnifiedError() throws Exception {
-        String login = createUser(Role.VIEWER, true, false);
+        String login = createUser(Role.MODERATOR, true, false);
         login(login, "Wrong!Passw0rd1")
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("BAD_CREDENTIALS"))
@@ -96,7 +96,7 @@ class AuthFlowTest {
 
     @Test
     void accountIsLockedAfterRepeatedFailures() throws Exception {
-        String login = createUser(Role.VIEWER, true, false);
+        String login = createUser(Role.MODERATOR, true, false);
         for (int i = 0; i < 3; i++) {
             login(login, "Wrong!Passw0rd1").andExpect(status().isUnauthorized());
         }
@@ -106,14 +106,14 @@ class AuthFlowTest {
 
     @Test
     void disabledAccountCannotLogin() throws Exception {
-        String login = createUser(Role.VIEWER, false, false);
+        String login = createUser(Role.MODERATOR, false, false);
         login(login, PASSWORD).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ACCOUNT_DISABLED"));
     }
 
     @Test
     void refreshRotatesTokenAndReuseIsRejected() throws Exception {
-        String login = createUser(Role.EDITOR, true, false);
+        String login = createUser(Role.MODERATOR, true, false);
         String refresh1 = field(login(login, PASSWORD).andExpect(status().isOk()), "$.refreshToken");
 
         ResultActions second = mvc.perform(post("/api/auth/refresh").contentType(MediaType.APPLICATION_JSON)
@@ -129,7 +129,7 @@ class AuthFlowTest {
 
     @Test
     void logoutRevokesRefreshSession() throws Exception {
-        String login = createUser(Role.VIEWER, true, false);
+        String login = createUser(Role.MODERATOR, true, false);
         String refresh = field(login(login, PASSWORD).andExpect(status().isOk()), "$.refreshToken");
         String body = "{\"refreshToken\":\"" + refresh + "\"}";
 
@@ -169,36 +169,38 @@ class AuthFlowTest {
                 .andExpect(jsonPath("$.mustChangePassword").value(false));
         String newToken = field(changed, "$.accessToken");
 
-        // эндпоинта пока нет: 404 означает, что защита пропустила запрос
+        // после смены пароля админка доступна
         mvc.perform(get("/api/admin/users").header("Authorization", "Bearer " + newToken))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
         login(login, PASSWORD).andExpect(status().isUnauthorized());
         login(login, "N3w!Passw0rdXyz").andExpect(status().isOk());
     }
 
     @Test
     void rolesRestrictAccess() throws Exception {
-        String viewer = accessToken(Role.VIEWER);
-        String editor = accessToken(Role.EDITOR);
+        String moderator = accessToken(Role.MODERATOR);
         String admin = accessToken(Role.ADMIN);
 
         mvc.perform(get("/api/items")).andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
         mvc.perform(get("/api/items").header("Authorization", "Bearer garbage")).andExpect(status().isUnauthorized());
 
-        // Чтение доступно VIEWER; после проверки роли контроллер проверяет тело запроса.
-        mvc.perform(get("/api/items").header("Authorization", "Bearer " + viewer)).andExpect(status().isOk());
-        // изменение: EDITOR и выше
-        mvc.perform(post("/api/items").header("Authorization", "Bearer " + viewer)).andExpect(status().isForbidden());
-        mvc.perform(post("/api/items").header("Authorization", "Bearer " + editor)).andExpect(status().isBadRequest());
-        // окончательное удаление, справочники, админка: только ADMIN
+        // Чтение доступно MODERATOR; после проверки роли контроллер проверяет тело запроса.
+        mvc.perform(get("/api/items").header("Authorization", "Bearer " + moderator)).andExpect(status().isOk());
+        // изменение: MODERATOR и выше
+        mvc.perform(post("/api/items").header("Authorization", "Bearer " + moderator)).andExpect(status().isBadRequest());
+        // Удаление справочников, окончательное удаление и админка: только ADMIN
         String id = UUID.randomUUID().toString();
-        mvc.perform(delete("/api/items/" + id + "/permanent").header("Authorization", "Bearer " + editor))
+        mvc.perform(delete("/api/items/" + id + "/permanent").header("Authorization", "Bearer " + moderator))
                 .andExpect(status().isForbidden());
         mvc.perform(delete("/api/items/" + id + "/permanent").header("Authorization", "Bearer " + admin))
                 .andExpect(status().isBadRequest());
-        mvc.perform(post("/api/references").header("Authorization", "Bearer " + editor)).andExpect(status().isForbidden());
-        mvc.perform(get("/api/admin/audit").header("Authorization", "Bearer " + editor)).andExpect(status().isForbidden());
+        mvc.perform(post("/api/references/flights").header("Authorization", "Bearer " + moderator)).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/references/passengers").header("Authorization", "Bearer " + moderator)).andExpect(status().isBadRequest());
+        mvc.perform(delete("/api/references/flights/" + id).header("Authorization", "Bearer " + moderator)).andExpect(status().isForbidden());
+        mvc.perform(delete("/api/references/passengers/" + id).header("Authorization", "Bearer " + moderator)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/admin/users").header("Authorization", "Bearer " + moderator)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/admin/audit").header("Authorization", "Bearer " + moderator)).andExpect(status().isForbidden());
         mvc.perform(get("/api/admin/audit").header("Authorization", "Bearer " + admin)).andExpect(status().isNotFound());
     }
 

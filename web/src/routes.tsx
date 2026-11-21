@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { Role } from './api/types'
 import { BookingsPage } from './pages/BookingsPage'
 import { ReferencesPage } from './pages/ReferencesPage'
+import { AdminUsersPage } from './pages/AdminUsersPage'
 import { HomePage } from './pages/HomePage'
 import { Placeholder } from './pages/Placeholder'
 
@@ -18,11 +19,11 @@ export interface AppRoute {
  * маршрут, меню и проверка роли подхватятся автоматически.
  */
 export const appRoutes: AppRoute[] = [
-  { path: '/', label: 'Главная', role: 'VIEWER', element: <HomePage /> },
-  { path: '/bookings', label: 'Брони', role: 'VIEWER', element: <BookingsPage /> },
-  { path: '/flights', label: 'Рейсы', role: 'VIEWER', element: <ReferencesPage key="flights" kind="flights" /> },
-  { path: '/passengers', label: 'Пассажиры', role: 'VIEWER', element: <ReferencesPage key="passengers" kind="passengers" /> },
-  { path: '/analytics', label: 'Аналитика', role: 'VIEWER', element: <Placeholder title="Аналитика" owner="сводка и группировки" /> },
-  { path: '/admin/users', label: 'Пользователи', role: 'ADMIN', element: <Placeholder title="Пользователи" owner="администрирование учётных записей" /> },
+  { path: '/', label: 'Главная', role: 'MODERATOR', element: <HomePage /> },
+  { path: '/bookings', label: 'Брони', role: 'MODERATOR', element: <BookingsPage /> },
+  { path: '/flights', label: 'Рейсы', role: 'MODERATOR', element: <ReferencesPage key="flights" kind="flights" /> },
+  { path: '/passengers', label: 'Пассажиры', role: 'MODERATOR', element: <ReferencesPage key="passengers" kind="passengers" /> },
+  { path: '/analytics', label: 'Аналитика', role: 'MODERATOR', element: <Placeholder title="Аналитика" owner="сводка и группировки" /> },
+  { path: '/admin/users', label: 'Пользователи', role: 'ADMIN', element: <AdminUsersPage /> },
   { path: '/admin/audit', label: 'Аудит', role: 'ADMIN', element: <Placeholder title="Журнал аудита" owner="поиск и просмотр событий" /> },
 ]

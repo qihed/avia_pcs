@@ -16,8 +16,7 @@ export function OperationError({ error }: { error: unknown }) {
         ))}
       {error instanceof ApiError && error.code === "VERSION_CONFLICT" && (
         <p>
-          Нажмите «Обновить данные», проверьте актуальную запись и повторите
-          изменение.
+          Перечитайте актуальные данные, проверьте запись и повторите изменение.
         </p>
       )}
     </div>

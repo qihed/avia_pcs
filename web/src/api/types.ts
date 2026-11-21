@@ -1,7 +1,7 @@
-export type Role = 'VIEWER' | 'EDITOR' | 'ADMIN'
+export type Role = 'MODERATOR' | 'ADMIN'
 
 /** Порядок важен: более высокая роль включает низшие. */
-export const ROLE_ORDER: Role[] = ['VIEWER', 'EDITOR', 'ADMIN']
+export const ROLE_ORDER: Role[] = ['MODERATOR', 'ADMIN']
 
 export interface User {
   id: string

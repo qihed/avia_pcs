@@ -3,6 +3,8 @@ package ru.mirea.avia.domain;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.*;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.UUID;
 
 @Entity
@@ -52,4 +54,15 @@ public class Booking {
 
   @Column(nullable = false)
   public LocalDateTime updatedAt;
+
+  /** Теги брони (таблица booking_tags из V2). Хранятся нормализованными: см. BookingTags. */
+  @ElementCollection(fetch = FetchType.EAGER)
+  @CollectionTable(
+    name = "booking_tags",
+    joinColumns = @JoinColumn(name = "booking_id")
+  )
+  @Column(name = "tag", nullable = false, length = 40)
+  @org.hibernate.annotations.SortNatural
+  @org.hibernate.annotations.BatchSize(size = 100)
+  public SortedSet<String> tags = new TreeSet<>();
 }

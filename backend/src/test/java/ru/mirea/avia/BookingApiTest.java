@@ -81,14 +81,8 @@ class BookingApiTest {
   }
 
   RequestPostProcessor role(Role role, UUID id) {
-    List<SimpleGrantedAuthority> authorities = new ArrayList<>();
-    authorities.add(new SimpleGrantedAuthority("ROLE_VIEWER"));
-    if (role != Role.VIEWER) authorities.add(
-      new SimpleGrantedAuthority("ROLE_EDITOR")
-    );
-    if (role == Role.ADMIN) authorities.add(
-      new SimpleGrantedAuthority("ROLE_ADMIN")
-    );
+    List<SimpleGrantedAuthority> authorities = role.withIncluded().stream()
+      .map(r -> new SimpleGrantedAuthority(r.authority())).toList();
     return authentication(
       new UsernamePasswordAuthenticationToken(
         new AuthUser(id, "test", "Тест", false, Set.of(role)),
@@ -115,7 +109,7 @@ class BookingApiTest {
       mvc
         .perform(
           post("/api/items")
-            .with(role(Role.EDITOR))
+            .with(role(Role.MODERATOR))
             .contentType(MediaType.APPLICATION_JSON)
             .content(body("12A", null))
         )
@@ -132,13 +126,13 @@ class BookingApiTest {
     JsonNode b = create();
     String id = b.get("id").asText();
     mvc
-      .perform(get("/api/items/" + id).with(role(Role.VIEWER)))
+      .perform(get("/api/items/" + id).with(role(Role.MODERATOR)))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.extraBaggage").value(true));
     mvc
       .perform(
         put("/api/items/" + id)
-          .with(role(Role.EDITOR))
+          .with(role(Role.MODERATOR))
           .contentType(MediaType.APPLICATION_JSON)
           .content(body("12B", 0L))
       )
@@ -147,7 +141,7 @@ class BookingApiTest {
     mvc
       .perform(
         put("/api/items/" + id)
-          .with(role(Role.EDITOR))
+          .with(role(Role.MODERATOR))
           .contentType(MediaType.APPLICATION_JSON)
           .content(body("12C", 0L))
       )
@@ -155,31 +149,31 @@ class BookingApiTest {
       .andExpect(jsonPath("$.code").value("VERSION_CONFLICT"));
     mvc
       .perform(
-        delete("/api/items/" + id + "?version=1").with(role(Role.EDITOR))
+        delete("/api/items/" + id + "?version=1").with(role(Role.MODERATOR))
       )
       .andExpect(status().isConflict());
     mvc
       .perform(
         patch("/api/items/" + id + "/status")
-          .with(role(Role.EDITOR))
+          .with(role(Role.MODERATOR))
           .contentType(MediaType.APPLICATION_JSON)
           .content("{\"status\":\"CANCELLED\",\"version\":1}")
       )
       .andExpect(status().isOk());
     mvc
       .perform(
-        delete("/api/items/" + id + "?version=2").with(role(Role.EDITOR))
+        delete("/api/items/" + id + "?version=2").with(role(Role.MODERATOR))
       )
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.archived").value(true));
     mvc
-      .perform(get("/api/items?archived=true").with(role(Role.VIEWER)))
+      .perform(get("/api/items?archived=true").with(role(Role.MODERATOR)))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.totalElements").value(1));
     mvc
       .perform(
         post("/api/items/" + id + "/restore")
-          .with(role(Role.EDITOR))
+          .with(role(Role.MODERATOR))
           .contentType(MediaType.APPLICATION_JSON)
           .content("{\"version\":3}")
       )
@@ -187,13 +181,13 @@ class BookingApiTest {
       .andExpect(jsonPath("$.archived").value(false));
     mvc
       .perform(
-        delete("/api/items/" + id + "?version=4").with(role(Role.EDITOR))
+        delete("/api/items/" + id + "?version=4").with(role(Role.MODERATOR))
       )
       .andExpect(status().isOk());
     mvc
       .perform(
         delete("/api/items/" + id + "/permanent?version=5").with(
-          role(Role.EDITOR)
+          role(Role.MODERATOR)
         )
       )
       .andExpect(status().isForbidden());
@@ -205,7 +199,7 @@ class BookingApiTest {
       )
       .andExpect(status().isNoContent());
     mvc
-      .perform(get("/api/items/" + id).with(role(Role.VIEWER)))
+      .perform(get("/api/items/" + id).with(role(Role.MODERATOR)))
       .andExpect(status().isNotFound());
   }
 
@@ -215,7 +209,7 @@ class BookingApiTest {
     mvc
       .perform(
         post("/api/items")
-          .with(role(Role.EDITOR))
+          .with(role(Role.MODERATOR))
           .contentType(MediaType.APPLICATION_JSON)
           .content(body("12A", null))
       )
@@ -224,7 +218,7 @@ class BookingApiTest {
     mvc
       .perform(
         post("/api/items")
-          .with(role(Role.EDITOR))
+          .with(role(Role.MODERATOR))
           .contentType(MediaType.APPLICATION_JSON)
           .content(body("12B", null))
       )
@@ -233,7 +227,7 @@ class BookingApiTest {
     mvc
       .perform(
         post("/api/items")
-          .with(role(Role.EDITOR))
+          .with(role(Role.MODERATOR))
           .contentType(MediaType.APPLICATION_JSON)
           .content(body("0A", null))
       )
@@ -241,7 +235,7 @@ class BookingApiTest {
     mvc
       .perform(
         post("/api/items")
-          .with(role(Role.EDITOR))
+          .with(role(Role.MODERATOR))
           .contentType(MediaType.APPLICATION_JSON)
           .content(body("99A", null))
       )
@@ -254,22 +248,23 @@ class BookingApiTest {
     mvc
       .perform(
         post("/api/items")
-          .with(role(Role.VIEWER))
+          .with(role(Role.MODERATOR))
           .contentType(MediaType.APPLICATION_JSON)
           .content(body("12A", null))
       )
-      .andExpect(status().isForbidden());
+      .andExpect(status().isCreated());
     mvc
-      .perform(get("/api/references/flights").with(role(Role.VIEWER)))
+      .perform(get("/api/references/flights").with(role(Role.MODERATOR)))
       .andExpect(status().isOk());
     mvc
       .perform(
         delete("/api/references/flights/" + flight.id + "?version=0").with(
-          role(Role.EDITOR)
+          role(Role.MODERATOR)
         )
       )
       .andExpect(status().isForbidden());
-    create();
+    mvc.perform(delete("/api/references/passengers/" + passenger.id).with(role(Role.MODERATOR)))
+      .andExpect(status().isForbidden());
     mvc
       .perform(
         delete("/api/references/flights/" + flight.id + "?version=0").with(
@@ -295,7 +290,7 @@ class BookingApiTest {
         mvc
           .perform(
             post(endpoint)
-              .with(role(Role.EDITOR))
+              .with(role(Role.MODERATOR))
               .contentType(MediaType.APPLICATION_JSON)
               .content("{\"text\":\"Позвонить пассажиру\",\"pinned\":true}")
           )
@@ -307,14 +302,14 @@ class BookingApiTest {
       .get("id")
       .asText();
     mvc
-      .perform(get(endpoint).with(role(Role.VIEWER)))
+      .perform(get(endpoint).with(role(Role.MODERATOR)))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$[0].pinned").value(true))
       .andExpect(jsonPath("$[0].authorName").value("Тест"));
     mvc
       .perform(
         put(endpoint + "/" + note)
-          .with(role(Role.EDITOR, UUID.randomUUID()))
+          .with(role(Role.MODERATOR, UUID.randomUUID()))
           .contentType(MediaType.APPLICATION_JSON)
           .content("{\"text\":\"Чужое изменение\"}")
       )
@@ -322,7 +317,7 @@ class BookingApiTest {
     mvc
       .perform(
         put(endpoint + "/" + note)
-          .with(role(Role.EDITOR))
+          .with(role(Role.MODERATOR))
           .contentType(MediaType.APPLICATION_JSON)
           .content("{\"text\":\"Готово\",\"pinned\":false}")
       )
@@ -331,7 +326,7 @@ class BookingApiTest {
     mvc
       .perform(
         post(endpoint)
-          .with(role(Role.EDITOR))
+          .with(role(Role.MODERATOR))
           .contentType(MediaType.APPLICATION_JSON)
           .content("{\"text\":\"   \"}")
       )
@@ -350,7 +345,7 @@ class BookingApiTest {
     b.createdAt = LocalDateTime.now(ZoneOffset.UTC).minusMinutes(31);
     bookings.saveAndFlush(b);
     mvc
-      .perform(get("/api/items/" + id).with(role(Role.VIEWER)))
+      .perform(get("/api/items/" + id).with(role(Role.MODERATOR)))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.status").value("EXPIRED"))
       .andExpect(jsonPath("$.urgencyLevel").value("NONE"));
@@ -364,7 +359,7 @@ class BookingApiTest {
     mvc
       .perform(
         patch("/api/items/" + id + "/status")
-          .with(role(Role.EDITOR))
+          .with(role(Role.MODERATOR))
           .contentType(MediaType.APPLICATION_JSON)
           .content("{\"status\":\"COMPLETED\",\"version\":0}")
       )
@@ -375,7 +370,7 @@ class BookingApiTest {
     mvc
       .perform(
         post("/api/items")
-          .with(role(Role.EDITOR))
+          .with(role(Role.MODERATOR))
           .contentType(MediaType.APPLICATION_JSON)
           .content(body("12B", null))
       )

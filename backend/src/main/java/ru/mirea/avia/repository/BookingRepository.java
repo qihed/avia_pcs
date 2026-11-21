@@ -5,7 +5,14 @@ import java.util.*;
 import org.springframework.data.jpa.repository.*;
 import ru.mirea.avia.domain.Booking;
 
-public interface BookingRepository extends JpaRepository<Booking, UUID> {
+public interface BookingRepository
+  extends JpaRepository<Booking, UUID>, JpaSpecificationExecutor<Booking> {
+  /** Все теги с числом броней (кроме архивных), по алфавиту. */
+  @Query(
+    "select t, count(b) from Booking b join b.tags t where b.archived = false group by t order by t"
+  )
+  List<Object[]> tagUsageRows();
+
   @Modifying(flushAutomatically = true, clearAutomatically = true)
   @Query(
     "update Booking b set b.status=ru.mirea.avia.domain.BookingStatus.EXPIRED, b.version=b.version+1, b.updatedAt=:now where b.status=ru.mirea.avia.domain.BookingStatus.CREATED and b.createdAt<=:cutoff"

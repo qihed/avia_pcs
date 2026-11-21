@@ -105,6 +105,13 @@ public class UserAccount {
         this.updatedAt = now;
     }
 
+    /** Снять блокировку после неудачных попыток входа (делает администратор). */
+    public void unlock(Instant now) {
+        this.failedAttempts = 0;
+        this.lockedUntil = null;
+        this.updatedAt = now;
+    }
+
     public UUID getId() { return id; }
     public String getLogin() { return login; }
     public String getDisplayName() { return displayName; }
