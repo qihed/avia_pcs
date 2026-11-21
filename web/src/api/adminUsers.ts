@@ -31,19 +31,18 @@ export interface PageResponse<T> {
 }
 
 export const ROLE_TITLES: Record<Role, string> = {
-  VIEWER: 'Просмотр',
-  EDITOR: 'Редактор',
+  MODERATOR: 'Модератор',
   ADMIN: 'Администратор',
 }
 
 /** Роли вложены, поэтому в интерфейсе показываем и выбираем одну — старшую. */
 export function topRole(roles: Role[]): Role {
   if (roles.includes('ADMIN')) return 'ADMIN'
-  if (roles.includes('EDITOR')) return 'EDITOR'
-  return 'VIEWER'
+  return 'MODERATOR'
 }
 
 export const adminUsersApi = {
+  get: (id: string) => api<AdminUser>('/api/admin/users/' + id),
   list: (params: URLSearchParams) => api<PageResponse<AdminUser>>('/api/admin/users?' + params.toString()),
 
   create: (login: string, displayName: string, role: Role) =>

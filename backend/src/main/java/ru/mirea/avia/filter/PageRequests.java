@@ -32,6 +32,9 @@ public final class PageRequests {
         if (size < 1 || size > maxSize) {
             throw new BadRequestException("INVALID_PAGE_SIZE", "Размер страницы должен быть от 1 до " + maxSize);
         }
+        if ((long) page * size > Integer.MAX_VALUE) {
+            throw new BadRequestException("INVALID_PAGE", "Номер страницы слишком велик");
+        }
         String source = sort == null || sort.isBlank() ? fallback : sort.trim();
         String[] parts = source.split(",", -1);
         if (parts.length > 2) {

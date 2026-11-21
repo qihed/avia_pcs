@@ -13,10 +13,11 @@ import {
   type FareClass,
   type TagUsage,
 } from '../api/bookingSearch'
-import { formatSort, intParam, PAGE_SIZES, Pager, parseSort, SortHeader, useDebounced, type SortState } from './ListControls'
+import { formatSort, intParam, PAGE_SIZES, Pager, parseSort, SortHeader, useUrlTextFields, type SortState } from './ListControls'
 import { OperationError } from './OperationError'
 
 const DEFAULT_SORT: SortState = { field: 'createdAt', dir: 'desc' }
+const ADVANCED_FILTERS = ['flightId', 'priceMin', 'priceMax', 'departureFrom', 'departureTo', 'extraBaggage']
 
 const BULK_TITLES: Record<BulkAction, string> = {
   ADD_TAG: 'Добавить тег',
@@ -48,17 +49,16 @@ export function BookingList({ busy, reloadKey, selectedId, editor, onOpen, onCha
   const page = intParam(params.get('page'), 0)
   const size = intParam(params.get('size'), 20, PAGE_SIZES)
   const sort = parseSort(params.get('sort'), DEFAULT_SORT)
-  const statuses = (params.get('status') ?? '').split(',').filter((s): s is BookingStatus =>
+  const statuses = params.getAll('status').flatMap((value) => value.split(',')).filter((s): s is BookingStatus =>
     (STATUSES as string[]).includes(s),
   )
 
   // текстовые поля применяются с задержкой, чтобы не отправлять запрос на каждую букву
-  const [text, setText] = useState({
+  const [text, setText] = useUrlTextFields({
     q: params.get('q') ?? '',
     priceMin: params.get('priceMin') ?? '',
     priceMax: params.get('priceMax') ?? '',
-  })
-  const debouncedText = useDebounced(text, 400)
+  }, update, 400)
 
   const [data, setData] = useState<Page<Booking> | null>(null)
   const [loading, setLoading] = useState(true)
@@ -67,7 +67,7 @@ export function BookingList({ busy, reloadKey, selectedId, editor, onOpen, onCha
   const [tags, setTags] = useState<TagUsage[]>([])
   const [flights, setFlights] = useState<Flight[]>([])
   const [moreFilters, setMoreFilters] = useState(() =>
-    ['flightId', 'priceMin', 'priceMax', 'departureFrom', 'departureTo', 'extraBaggage'].some((k) => params.has(k)),
+    ADVANCED_FILTERS.some((k) => params.has(k)),
   )
 
   const [selected, setSelected] = useState<Map<string, string>>(new Map())
@@ -94,21 +94,22 @@ export function BookingList({ busy, reloadKey, selectedId, editor, onOpen, onCha
     if (resetPage) setSelected(new Map())
   }
 
+  const filterKey = JSON.stringify([archived, ...FILTER_KEYS.map((key) => params.getAll(key))])
   useEffect(() => {
-    const changes: Record<string, string> = {}
-    for (const key of ['q', 'priceMin', 'priceMax'] as const) {
-      const value = debouncedText[key].trim()
-      if (value !== (params.get(key) ?? '')) changes[key] = value
-    }
-    if (Object.keys(changes).length) update(changes)
-  }, [debouncedText])
+    if (ADVANCED_FILTERS.some((key) => params.has(key))) setMoreFilters(true)
+  }, [params])
+  useEffect(() => {
+    setSelected(new Map())
+    setBulkResult(null)
+  }, [filterKey])
 
   // запрос к backend собирается только из известных параметров адреса
   const queryKey = useMemo(() => {
     const query = new URLSearchParams()
     for (const key of FILTER_KEYS) {
-      const value = params.get(key)
-      if (value) query.set(key, value)
+      for (const value of params.getAll(key)) {
+        if (value) query.append(key, value)
+      }
     }
     query.set('archived', String(archived))
     query.set('page', String(page))
@@ -126,9 +127,14 @@ export function BookingList({ busy, reloadKey, selectedId, editor, onOpen, onCha
       .then((r) => {
         if (!live) return
         setData(r)
-        if (r.totalPages > 0 && page >= r.totalPages) update({ page: String(r.totalPages - 1) }, false)
+        if (page > 0 && page >= r.totalPages) update({ page: String(Math.max(0, r.totalPages - 1)) }, false)
       })
-      .catch((e) => live && setError(e))
+      .catch((e) => {
+        if (live) {
+          setError(e)
+          setData(null)
+        }
+      })
       .finally(() => live && setLoading(false))
     return () => {
       live = false
@@ -166,13 +172,16 @@ export function BookingList({ busy, reloadKey, selectedId, editor, onOpen, onCha
   function toggleRow(b: Booking) {
     const next = new Map(selected)
     if (next.has(b.id)) next.delete(b.id)
-    else next.set(b.id, b.bookingCode)
+    else if (next.size < 100) next.set(b.id, b.bookingCode)
     setSelected(next)
   }
 
   function togglePage() {
     const next = new Map(selected)
-    rows.forEach((b) => (allOnPage ? next.delete(b.id) : next.set(b.id, b.bookingCode)))
+    rows.forEach((b) => {
+      if (allOnPage) next.delete(b.id)
+      else if (next.size < 100) next.set(b.id, b.bookingCode)
+    })
     setSelected(next)
   }
 
@@ -202,6 +211,7 @@ export function BookingList({ busy, reloadKey, selectedId, editor, onOpen, onCha
   }
 
   const disabled = busy || bulkBusy
+  const rowsDisabled = disabled || loading || !data
   const bulkReady =
     selected.size > 0 && ((bulkAction !== 'ADD_TAG' && bulkAction !== 'REMOVE_TAG') || bulkTag.trim().length > 0)
   const onSort = (s: SortState) => update({ sort: formatSort(s) }, false)
@@ -226,7 +236,7 @@ export function BookingList({ busy, reloadKey, selectedId, editor, onOpen, onCha
         <span className="muted">{data?.totalElements ?? 0} записей</span>
       </div>
 
-      <div className="card filters" role="search">
+      <fieldset className="card filters" role="search" disabled={disabled}>
         <label className="field wide">
           <span>Поиск</span>
           <input
@@ -356,13 +366,14 @@ export function BookingList({ busy, reloadKey, selectedId, editor, onOpen, onCha
             </button>
           )}
         </div>
-      </div>
+      </fieldset>
 
       <OperationError error={error} />
 
       {editor && selected.size > 0 && (
         <div className="card toolbar bulk-bar">
           <strong>Выбрано: {selected.size}</strong>
+          {selected.size === 100 && <span className="muted">Не больше 100 броней за раз</span>}
           <select
             value={bulkAction}
             disabled={disabled}
@@ -410,7 +421,7 @@ export function BookingList({ busy, reloadKey, selectedId, editor, onOpen, onCha
               ))}
             </select>
           )}
-          <button className="btn primary" disabled={disabled || !bulkReady} onClick={() => void runBulk()}>
+          <button className="btn primary" disabled={rowsDisabled || !bulkReady} onClick={() => void runBulk()}>
             Применить
           </button>
           <span className="spacer" />
@@ -453,7 +464,7 @@ export function BookingList({ busy, reloadKey, selectedId, editor, onOpen, onCha
                     type="checkbox"
                     aria-label="Выбрать все на странице"
                     checked={allOnPage}
-                    disabled={disabled || !rows.length}
+                    disabled={rowsDisabled || !rows.length || (!allOnPage && selected.size >= 100)}
                     onChange={togglePage}
                   />
                 </th>
@@ -479,13 +490,13 @@ export function BookingList({ busy, reloadKey, selectedId, editor, onOpen, onCha
                       type="checkbox"
                       aria-label={'Выбрать ' + b.bookingCode}
                       checked={selected.has(b.id)}
-                      disabled={disabled}
+                      disabled={rowsDisabled || (!selected.has(b.id) && selected.size >= 100)}
                       onChange={() => toggleRow(b)}
                     />
                   </td>
                 )}
                 <td>
-                  <button className="text-button" disabled={disabled} onClick={() => onOpen(b)}>
+                  <button className="text-button" disabled={rowsDisabled} onClick={() => onOpen(b)}>
                     {b.bookingCode}
                   </button>
                 </td>
@@ -530,7 +541,7 @@ export function BookingList({ busy, reloadKey, selectedId, editor, onOpen, onCha
           </tbody>
         </table>
         {loading && !data && <p className="empty">Загрузка…</p>}
-        {!loading && !rows.length && (
+        {!loading && !error && !rows.length && (
           <p className="empty">
             {activeFilters ? 'Ничего не найдено — измените условия поиска' : archived ? 'Архив пуст' : 'Бронирований нет'}
           </p>

@@ -80,6 +80,7 @@ public class UserAdminService {
 
     public AdminUserResponse update(UUID id, UpdateUserRequest request) {
         Instant now = clock.instant();
+        users.lockAdministrators(Role.ADMIN);
         UserAccount user = require(id);
         checkVersion(user, request.version());
         Set<Role> roles = EnumSet.copyOf(request.roles());

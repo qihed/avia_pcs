@@ -39,7 +39,7 @@ function fromBooking(b: Booking): Draft {
 }
 export function BookingsPage() {
   const { user } = useAuth(),
-    editor = hasRole(user, "EDITOR"),
+    editor = hasRole(user, "MODERATOR"),
     admin = hasRole(user, "ADMIN");
   // список (поиск, фильтры, сортировка, страницы) живёт в BookingList; reloadKey просит его перечитать данные
   const [reloadKey, setReloadKey] = useState(0);

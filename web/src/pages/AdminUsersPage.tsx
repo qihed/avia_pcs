@@ -12,7 +12,7 @@ import {
   Pager,
   parseSort,
   SortHeader,
-  useDebounced,
+  useUrlTextFields,
   type SortState,
 } from '../components/ListControls'
 import { OperationError } from '../components/OperationError'
@@ -38,8 +38,7 @@ export function AdminUsersPage() {
   const size = intParam(params.get('size'), 20, PAGE_SIZES)
   const sort = parseSort(params.get('sort'), DEFAULT_SORT)
 
-  const [search, setSearch] = useState(q)
-  const debouncedSearch = useDebounced(search)
+  const [text, setText] = useUrlTextFields({ q }, update)
   const [data, setData] = useState<PageResponse<AdminUser> | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -66,10 +65,6 @@ export function AdminUsersPage() {
     )
   }
 
-  useEffect(() => {
-    if (debouncedSearch.trim() !== q) update({ q: debouncedSearch.trim() })
-  }, [debouncedSearch])
-
   const query = new URLSearchParams()
   if (q) query.set('q', q)
   if (role) query.set('role', role)
@@ -82,15 +77,21 @@ export function AdminUsersPage() {
   useEffect(() => {
     let live = true
     setLoading(true)
+    setError(null)
     adminUsersApi
       .list(new URLSearchParams(queryKey))
       .then((r) => {
         if (!live) return
         setData(r)
         // после удаления фильтром последней строки страницы — шаг назад
-        if (r.totalPages > 0 && page >= r.totalPages) update({ page: String(r.totalPages - 1) }, false)
+        if (page > 0 && page >= r.totalPages) update({ page: String(Math.max(0, r.totalPages - 1)) }, false)
       })
-      .catch((e) => live && setError(e))
+      .catch((e) => {
+        if (live) {
+          setError(e)
+          setData(null)
+        }
+      })
       .finally(() => live && setLoading(false))
     return () => {
       live = false
@@ -115,7 +116,7 @@ export function AdminUsersPage() {
     setSecret(null)
     setFieldErrors({})
     setError(null)
-    setEditor({ mode: 'create', login: '', displayName: '', role: 'VIEWER' })
+    setEditor({ mode: 'create', login: '', displayName: '', role: 'MODERATOR' })
   }
 
   function openEdit(u: AdminUser) {
@@ -158,6 +159,13 @@ export function AdminUsersPage() {
     await run(async () => {
       const saved = await adminUsersApi.unlock(u.id)
       if (editor?.mode === 'edit') setEditor({ ...editor, user: saved })
+      setReloadKey((k) => k + 1)
+    })
+  }
+
+  async function reloadEditor(u: AdminUser) {
+    await run(async () => {
+      openEdit(await adminUsersApi.get(u.id))
       setReloadKey((k) => k + 1)
     })
   }
@@ -287,6 +295,11 @@ export function AdminUsersPage() {
                 Сбросить пароль
               </button>
             )}
+            {editor.mode === 'edit' && (
+              <button type="button" className="btn ghost" disabled={busy} onClick={() => void reloadEditor(editor.user)}>
+                Перечитать данные
+              </button>
+            )}
             {editor.mode === 'edit' && editor.user.locked && (
               <button type="button" className="btn ghost" disabled={busy} onClick={() => void unlock(editor.user)}>
                 Снять блокировку
@@ -304,10 +317,10 @@ export function AdminUsersPage() {
           <span>Поиск</span>
           <input
             type="search"
-            value={search}
+            value={text.q}
             maxLength={100}
             placeholder="Логин или имя"
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => setText({ q: e.target.value })}
           />
         </label>
         <label className="field">
@@ -333,7 +346,7 @@ export function AdminUsersPage() {
           <button
             className="btn ghost"
             onClick={() => {
-              setSearch('')
+              setText({ q: '' })
               update({ q: '', role: '', enabled: '' })
             }}
           >
@@ -391,7 +404,7 @@ export function AdminUsersPage() {
                 <td>{formatInstant(u.lastLoginAt)}</td>
                 <td>{formatInstant(u.createdAt)}</td>
                 <td>
-                  <button className="text-button" disabled={busy} onClick={() => openEdit(u)}>
+                  <button className="text-button" disabled={busy || loading} onClick={() => openEdit(u)}>
                     Изменить
                   </button>
                 </td>
@@ -400,7 +413,7 @@ export function AdminUsersPage() {
           </tbody>
         </table>
         {loading && !data && <p className="empty">Загрузка…</p>}
-        {!loading && !data?.content.length && (
+        {!loading && !error && !data?.content.length && (
           <p className="empty">{filtersActive ? 'Никого не нашлось — измените условия поиска' : 'Пользователей нет'}</p>
         )}
       </div>

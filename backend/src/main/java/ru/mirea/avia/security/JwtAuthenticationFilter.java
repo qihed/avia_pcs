@@ -65,7 +65,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private void authenticate(UserAccount user) {
         Set<Role> roles = Set.copyOf(user.getRoles());
-        // Роль включает все нижестоящие: ADMIN получает ROLE_ADMIN, ROLE_EDITOR и ROLE_VIEWER
+        // Роль включает все нижестоящие: ADMIN получает ROLE_ADMIN и ROLE_MODERATOR
         List<GrantedAuthority> authorities = roles.stream()
                 .flatMap(r -> r.withIncluded().stream())
                 .map(Role::authority)

@@ -47,7 +47,7 @@ class BookingSearchApiTest {
 
     /** Запрос списка с параметрами вида "ключ", "значение", "ключ", "значение"… */
     ResultActions search(String... params) throws Exception {
-        var request = get("/api/items").with(BookingFixtures.as(Role.VIEWER));
+        var request = get("/api/items").with(BookingFixtures.as(Role.MODERATOR));
         for (int i = 0; i < params.length; i += 2) {
             request = request.param(params[i], params[i + 1]);
         }
@@ -114,6 +114,7 @@ class BookingSearchApiTest {
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.code").value("INVALID_FILTER"))
                     .andExpect(jsonPath("$.fieldErrors[0].field").value("q"));
+            search("q", "один два три четыре пять шесть").andExpect(status().isBadRequest());
         }
     }
 
@@ -201,6 +202,7 @@ class BookingSearchApiTest {
             search("flightId", "not-a-uuid").andExpect(status().isBadRequest());
             search("tag", "<script>").andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.code").value("INVALID_FILTER"));
+            search("departureTo", "+999999999-12-31").andExpect(status().isBadRequest());
         }
     }
 
@@ -241,6 +243,8 @@ class BookingSearchApiTest {
             search("size", "0").andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_PAGE_SIZE"));
             search("size", "101").andExpect(status().isBadRequest());
             search("page", "-1").andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_PAGE"));
+            search("page", "2147483647", "size", "100").andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_PAGE"));
         }
     }
 }

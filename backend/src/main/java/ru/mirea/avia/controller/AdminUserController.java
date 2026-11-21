@@ -45,7 +45,7 @@ public class AdminUserController {
         this.props = props;
     }
 
-    /** GET /api/admin/users?q=иван&role=EDITOR&enabled=true&page=0&size=20&sort=login,asc */
+    /** GET /api/admin/users?q=иван&role=MODERATOR&enabled=true&page=0&size=20&sort=login,asc */
     @GetMapping
     public PageResponse<AdminUserResponse> list(@RequestParam(required = false) String q,
                                                 @RequestParam(required = false) Role role,

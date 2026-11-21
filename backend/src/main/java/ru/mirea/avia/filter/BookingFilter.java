@@ -81,6 +81,12 @@ public record BookingFilter(
         if (departureFrom != null && departureTo != null && departureFrom.isAfter(departureTo)) {
             errors.add(new FieldViolation("departureTo", "Дата «по» раньше даты «с»"));
         }
+        if (departureFrom != null && (departureFrom.getYear() < 1 || departureFrom.getYear() > 9999)) {
+            errors.add(new FieldViolation("departureFrom", "Год должен быть от 1 до 9999"));
+        }
+        if (departureTo != null && (departureTo.getYear() < 1 || departureTo.getYear() > 9999)) {
+            errors.add(new FieldViolation("departureTo", "Год должен быть от 1 до 9999"));
+        }
         for (String tag : tags) {
             String problem = BookingTags.problem(BookingTags.normalize(tag));
             if (problem != null) {

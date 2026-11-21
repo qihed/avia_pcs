@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import ru.mirea.avia.domain.Role;
 import ru.mirea.avia.domain.UserAccount;
@@ -30,7 +31,7 @@ public final class AdminUserDtos {
             @Size(max = 120, message = "Не длиннее 120 символов")
             String displayName,
             @NotEmpty(message = "Выберите роль")
-            Set<Role> roles) {
+            Set<@NotNull Role> roles) {
     }
 
     public record UpdateUserRequest(
@@ -38,9 +39,11 @@ public final class AdminUserDtos {
             @Size(max = 120, message = "Не длиннее 120 символов")
             String displayName,
             @NotEmpty(message = "Выберите роль")
-            Set<Role> roles,
-            boolean enabled,
+            Set<@NotNull Role> roles,
+            @NotNull(message = "Укажите активность учётной записи")
+            Boolean enabled,
             @NotNull(message = "Укажите version")
+            @PositiveOrZero
             Long version) {
     }
 

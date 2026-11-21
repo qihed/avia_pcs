@@ -6,6 +6,12 @@ import java.util.*;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.dao.DataIntegrityViolationException;
 import ru.mirea.avia.config.AppProperties;
 import ru.mirea.avia.domain.*;
 import ru.mirea.avia.dto.*;
@@ -29,6 +35,7 @@ public class BookingService {
   private final BookingNoteRepository notes;
   private final Clock clock;
   private final AppProperties props;
+  private final TransactionTemplate bulkTransaction;
   private final SecureRandom random = new SecureRandom();
 
   public BookingService(
@@ -37,7 +44,8 @@ public class BookingService {
     PassengerRepository p,
     BookingNoteRepository n,
     Clock c,
-    AppProperties a
+    AppProperties a,
+    PlatformTransactionManager transactions
   ) {
     bookings = b;
     flights = f;
@@ -45,6 +53,8 @@ public class BookingService {
     notes = n;
     clock = c;
     props = a;
+    bulkTransaction = new TransactionTemplate(transactions);
+    bulkTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
   }
 
   private LocalDateTime now() {
@@ -282,8 +292,9 @@ public class BookingService {
   /**
    * Одно действие над выбранными бронями. Каждая бронь проверяется теми же правилами, что и при
    * одиночной операции; если бронь не подходит, она попадает в failures, а остальные изменяются.
-   * Проверки идут до изменения сущности, поэтому отказ по одной брони не оставляет её «наполовину» изменённой.
+   * Каждая бронь обрабатывается в своей транзакции: отказ или конфликт версии откатывает только её.
    */
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   public BulkResult bulk(BulkRequest r) {
     String tag = null;
     switch (r.action()) {
@@ -304,23 +315,30 @@ public class BookingService {
       }
       default -> {}
     }
-    expire();
+    bulkTransaction.executeWithoutResult(tx -> expire());
     List<UUID> ids = List.copyOf(new LinkedHashSet<>(r.ids()));
-    Map<UUID, Booking> found = new HashMap<>();
-    bookings.findAllById(ids).forEach(b -> found.put(b.id, b));
     int succeeded = 0;
     List<BulkFailure> failures = new ArrayList<>();
+    String normalizedTag = tag;
     for (UUID id : ids) {
-      Booking b = found.get(id);
-      if (b == null) {
-        failures.add(new BulkFailure(id, null, "Бронь не найдена"));
-        continue;
-      }
       try {
-        if (applyBulk(b, r, tag)) saved(b);
-        succeeded++;
-      } catch (ApiException e) {
-        failures.add(new BulkFailure(id, b.bookingCode, e.getMessage()));
+        BulkFailure failure = bulkTransaction.execute(tx -> {
+          Booking b = bookings.findById(id).orElse(null);
+          if (b == null) return new BulkFailure(id, null, "Бронь не найдена");
+          try {
+            if (applyBulk(b, r, normalizedTag)) saved(b);
+            return null;
+          } catch (ApiException e) {
+            tx.setRollbackOnly();
+            return new BulkFailure(id, b.bookingCode, e.getMessage());
+          }
+        });
+        if (failure == null) succeeded++;
+        else failures.add(failure);
+      } catch (OptimisticLockingFailureException | jakarta.persistence.OptimisticLockException e) {
+        failures.add(new BulkFailure(id, null, "Бронь изменена другим пользователем. Обновите данные"));
+      } catch (DataIntegrityViolationException e) {
+        failures.add(new BulkFailure(id, null, "Операция нарушает ограничения данных"));
       }
     }
     return new BulkResult(ids.size(), succeeded, failures);

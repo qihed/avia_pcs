@@ -56,9 +56,9 @@ class AdminUserApiTest {
     void fixture() {
         prefix = "t" + UUID.randomUUID().toString().substring(0, 6);
         admin = save(prefix + "-admin", "Админ Главный", Role.ADMIN, true);
-        save(prefix + "-ivanov", "Иванов Иван", Role.EDITOR, true);
-        save(prefix + "-petrov", "Петров Пётр", Role.VIEWER, true);
-        save(prefix + "-sidorov", "Сидоров Иван", Role.VIEWER, false);
+        save(prefix + "-ivanov", "Иванов Иван", Role.MODERATOR, true);
+        save(prefix + "-petrov", "Петров Пётр", Role.MODERATOR, true);
+        save(prefix + "-sidorov", "Сидоров Иван", Role.MODERATOR, false);
     }
 
     UserAccount save(String login, String name, Role role, boolean enabled) {
@@ -104,9 +104,10 @@ class AdminUserApiTest {
                 .andExpect(jsonPath("$.content[1].login").value(prefix + "-sidorov"));
 
         mvc.perform(get("/api/admin/users").with(as(admin))
-                        .param("q", prefix).param("role", "VIEWER").param("enabled", "true"))
-                .andExpect(jsonPath("$.totalElements").value(1))
-                .andExpect(jsonPath("$.content[0].login").value(prefix + "-petrov"));
+                        .param("q", prefix).param("role", "MODERATOR").param("enabled", "true").param("sort", "login,asc"))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.content[0].login").value(prefix + "-ivanov"))
+                .andExpect(jsonPath("$.content[1].login").value(prefix + "-petrov"));
 
         mvc.perform(get("/api/admin/users").with(as(admin))
                         .param("q", prefix).param("sort", "login,desc").param("size", "2").param("page", "1"))
@@ -129,6 +130,21 @@ class AdminUserApiTest {
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_PAGE_SIZE"));
         mvc.perform(get("/api/admin/users").with(as(admin)).param("role", "ROOT"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+        mvc.perform(get("/api/admin/users").with(as(admin)).param("page", "2147483647").param("size", "100"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_PAGE"));
+    }
+
+    @Test
+    void rejectsNullRolesAndMissingEnabledWithoutChangingUser() throws Exception {
+        mvc.perform(post("/api/admin/users").with(as(admin)).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"login\":\"valid-user\",\"displayName\":\"Имя\",\"roles\":[null]}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+        UserAccount viewer = users.findByLoginIgnoreCase(prefix + "-petrov").orElseThrow();
+        mvc.perform(put("/api/admin/users/" + viewer.getId()).with(as(admin)).contentType(MediaType.APPLICATION_JSON)
+                        .content(body(Map.of("displayName", "Имя", "roles", List.of("MODERATOR"), "version", viewer.getVersion()))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("enabled"));
+        assertThat(users.findById(viewer.getId()).orElseThrow().isEnabled()).isTrue();
     }
 
     @Test
@@ -136,7 +152,7 @@ class AdminUserApiTest {
         String login = (prefix + "-New.User@Mail.ru");
         JsonNode created = json(mvc.perform(post("/api/admin/users").with(as(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body(Map.of("login", login, "displayName", "  Новый  ", "roles", List.of("EDITOR")))))
+                        .content(body(Map.of("login", login, "displayName", "  Новый  ", "roles", List.of("MODERATOR")))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.user.login").value(login.toLowerCase()))
                 .andExpect(jsonPath("$.user.displayName").value("Новый"))
@@ -150,7 +166,7 @@ class AdminUserApiTest {
 
         // тот же логин в другом регистре — конфликт
         mvc.perform(post("/api/admin/users").with(as(admin)).contentType(MediaType.APPLICATION_JSON)
-                        .content(body(Map.of("login", login.toUpperCase(), "displayName", "Дубль", "roles", List.of("VIEWER")))))
+                        .content(body(Map.of("login", login.toUpperCase(), "displayName", "Дубль", "roles", List.of("MODERATOR")))))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("LOGIN_TAKEN"));
 
         // ошибки полей приходят списком fieldErrors
@@ -168,11 +184,11 @@ class AdminUserApiTest {
         long version = editor.getVersion();
 
         mvc.perform(put(url).with(as(admin)).contentType(MediaType.APPLICATION_JSON)
-                        .content(body(Map.of("displayName", "Иванов И.", "roles", List.of("VIEWER"),
+                        .content(body(Map.of("displayName", "Иванов И.", "roles", List.of("MODERATOR"),
                                 "enabled", false, "version", version))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.displayName").value("Иванов И."))
-                .andExpect(jsonPath("$.roles[0]").value("VIEWER"))
+                .andExpect(jsonPath("$.roles[0]").value("MODERATOR"))
                 .andExpect(jsonPath("$.enabled").value(false))
                 .andExpect(jsonPath("$.version").value(version + 1));
 
@@ -187,7 +203,7 @@ class AdminUserApiTest {
     @Test
     void adminCannotLockThemselvesOutOrRemoveLastAdmin() throws Exception {
         mvc.perform(put("/api/admin/users/" + admin.getId()).with(as(admin)).contentType(MediaType.APPLICATION_JSON)
-                        .content(body(Map.of("displayName", "Я", "roles", List.of("EDITOR"),
+                        .content(body(Map.of("displayName", "Я", "roles", List.of("MODERATOR"),
                                 "enabled", true, "version", admin.getVersion()))))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("SELF_LOCKOUT"));
 
@@ -207,7 +223,7 @@ class AdminUserApiTest {
         // теперь второй (уже отключённый, но с токеном в тесте) пытается снять роль с последнего — запрет
         UserAccount fresh = users.findById(admin.getId()).orElseThrow();
         mvc.perform(put("/api/admin/users/" + admin.getId()).with(as(second)).contentType(MediaType.APPLICATION_JSON)
-                        .content(body(Map.of("displayName", "Админ Главный", "roles", List.of("VIEWER"),
+                        .content(body(Map.of("displayName", "Админ Главный", "roles", List.of("MODERATOR"),
                                 "enabled", true, "version", fresh.getVersion()))))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("LAST_ADMIN"));
     }

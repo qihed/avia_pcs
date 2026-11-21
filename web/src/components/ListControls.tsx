@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 /** Сортировка в формате backend: «поле,asc» или «поле,desc». */
 export interface SortState {
@@ -100,20 +100,37 @@ export function Pager({
   )
 }
 
-/** Значение, которое обновляется с задержкой: поиск не дёргает backend на каждую букву. */
-export function useDebounced<T>(value: T, delayMs = 300): T {
-  const [debounced, setDebounced] = useState(value)
+/** Черновик текстовых фильтров. Переход по URL отменяет отложенный ввод из предыдущего адреса. */
+export function useUrlTextFields<T extends Record<string, string>>(
+  values: T,
+  onCommit: (changes: Record<string, string>) => void,
+  delayMs = 300,
+): [T, (fields: T) => void] {
+  const source = JSON.stringify(values)
+  const [draft, setDraft] = useState({ source, fields: values })
+  const commit = useRef(onCommit)
+  commit.current = onCommit
+  if (draft.source !== source) setDraft({ source, fields: values })
+
   useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delayMs)
+    if (draft.source !== source) return
+    const changes = Object.fromEntries(
+      Object.entries(draft.fields)
+        .map(([key, value]) => [key, value.trim()])
+        .filter(([key, value]) => value !== values[key]),
+    )
+    if (!Object.keys(changes).length) return
+    const timer = setTimeout(() => commit.current(changes), delayMs)
     return () => clearTimeout(timer)
-  }, [value, delayMs])
-  return debounced
+  }, [draft, source, delayMs])
+
+  return [draft.source === source ? draft.fields : values, (fields) => setDraft({ source, fields })]
 }
 
 /** Число из строки параметра URL или значение по умолчанию. */
 export function intParam(value: string | null, fallback: number, allowed?: number[]): number {
   const n = Number(value)
-  if (value === null || !Number.isInteger(n) || n < 0) return fallback
+  if (value === null || !Number.isSafeInteger(n) || n < 0) return fallback
   if (allowed && !allowed.includes(n)) return fallback
   return n
 }
