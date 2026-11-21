@@ -76,6 +76,7 @@ const flightFields: Field[] = [
 export function ReferencesPage({ kind }: { kind: "passengers" | "flights" }) {
   const { user } = useAuth();
   const admin = hasRole(user, "ADMIN");
+  const canEdit = hasRole(user, "MODERATOR");
   const [rows, setRows] = useState<Row[]>([]),
     [draft, setDraft] = useState<Row | null>(null),
     [query, setQuery] = useState("");
@@ -175,7 +176,7 @@ export function ReferencesPage({ kind }: { kind: "passengers" | "flights" }) {
       <div className="toolbar">
         <h1>{kind === "passengers" ? "Пассажиры" : "Рейсы"}</h1>
         <span className="spacer" />
-        {admin && (
+        {canEdit && (
           <button className="btn primary" disabled={busy} onClick={create}>
             Добавить
           </button>
@@ -293,7 +294,7 @@ export function ReferencesPage({ kind }: { kind: "passengers" | "flights" }) {
                 <th>{kind === "passengers" ? "Документ" : "Маршрут"}</th>
                 <th>{kind === "passengers" ? "Контакты" : "Вылет (UTC)"}</th>
                 <th>{kind === "passengers" ? "Дата рождения" : "Состояние"}</th>
-                {admin && <th>Действия</th>}
+                {canEdit && <th>Действия</th>}
               </tr>
             </thead>
             <tbody>
@@ -331,7 +332,7 @@ export function ReferencesPage({ kind }: { kind: "passengers" | "flights" }) {
                       </>
                     )}
                   </td>
-                  {admin && (
+                  {canEdit && (
                     <td>
                       <div className="toolbar">
                         <button
@@ -344,13 +345,15 @@ export function ReferencesPage({ kind }: { kind: "passengers" | "flights" }) {
                         >
                           Изменить
                         </button>
-                        <button
-                          className="btn danger"
-                          disabled={busy}
-                          onClick={() => void remove(r)}
-                        >
-                          Удалить
-                        </button>
+                        {admin && (
+                          <button
+                            className="btn danger"
+                            disabled={busy}
+                            onClick={() => void remove(r)}
+                          >
+                            Удалить
+                          </button>
+                        )}
                       </div>
                     </td>
                   )}

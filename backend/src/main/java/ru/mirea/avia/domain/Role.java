@@ -3,13 +3,12 @@ package ru.mirea.avia.domain;
 import java.util.EnumSet;
 import java.util.Set;
 
-/** Три уровня доступа: просмотр, редактирование, администрирование. Более высокая роль включает низшие. */
+/** Два уровня доступа: модерация и администрирование. Более высокая роль включает низшие. */
 public enum Role {
-    VIEWER,
-    EDITOR,
+    MODERATOR,
     ADMIN;
 
-    /** Роль вместе со всеми, которые она включает: ADMIN -> ADMIN, EDITOR, VIEWER. */
+    /** Роль вместе со всеми, которые она включает: ADMIN -> ADMIN, MODERATOR. */
     public Set<Role> withIncluded() {
         EnumSet<Role> result = EnumSet.noneOf(Role.class);
         for (Role role : values()) {

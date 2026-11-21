@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { hasRole } from '../api/types'
+import { ROLE_TITLES, topRole } from '../api/adminUsers'
 import { useAuth } from '../auth/AuthContext'
 import { appRoutes } from '../routes'
 
@@ -31,7 +32,7 @@ export function Layout() {
         {user && (
           <div className="user">
             <span>{user.displayName}</span>
-            <span className="badge">{user.roles.at(-1)}</span>
+            <span className="badge">{ROLE_TITLES[topRole(user.roles)]}</span>
             <button className="btn ghost" onClick={handleLogout}>
               Выйти
             </button>

@@ -1,7 +1,9 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { api } from "../api/client";
 import { hasRole } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { BookingList } from "../components/BookingList";
+import { BookingTagsEditor } from "../components/BookingTagsEditor";
 import { OperationError } from "../components/OperationError";
 import {
   refs,
@@ -13,7 +15,6 @@ import {
   type Passenger,
   type Flight,
   type Note,
-  type Page,
 } from "../api/booking";
 
 type Draft = {
@@ -38,11 +39,10 @@ function fromBooking(b: Booking): Draft {
 }
 export function BookingsPage() {
   const { user } = useAuth(),
-    editor = hasRole(user, "EDITOR"),
+    editor = hasRole(user, "MODERATOR"),
     admin = hasRole(user, "ADMIN");
-  const [page, setPage] = useState(0),
-    [archived, setArchived] = useState(false),
-    [data, setData] = useState<Page<Booking> | null>(null);
+  // список (поиск, фильтры, сортировка, страницы) живёт в BookingList; reloadKey просит его перечитать данные
+  const [reloadKey, setReloadKey] = useState(0);
   const [selected, setSelected] = useState<Booking | null>(null),
     [draft, setDraft] = useState<Draft | null>(null),
     [creating, setCreating] = useState(false);
@@ -53,30 +53,10 @@ export function BookingsPage() {
     [noteId, setNoteId] = useState<string | null>(null),
     [pinned, setPinned] = useState(false);
   const [busy, setBusy] = useState(false),
-    [loading, setLoading] = useState(true),
     [error, setError] = useState<unknown>(null);
-  const url = "/api/items?archived=" + archived + "&page=" + page + "&size=20";
   async function load() {
-    setData(await api<Page<Booking>>(url));
+    setReloadKey((k) => k + 1);
   }
-  useEffect(() => {
-    let live = true;
-    setLoading(true);
-    setError(null);
-    api<Page<Booking>>(url)
-      .then((r) => {
-        if (live) setData(r);
-      })
-      .catch((e) => {
-        if (live) setError(e);
-      })
-      .finally(() => {
-        if (live) setLoading(false);
-      });
-    return () => {
-      live = false;
-    };
-  }, [url]);
   async function run(action: () => Promise<void>) {
     setBusy(true);
     setError(null);
@@ -171,7 +151,7 @@ export function BookingsPage() {
         )}
         <button
           className="btn ghost"
-          disabled={busy || loading}
+          disabled={busy}
           onClick={() =>
             void run(async () => {
               if (selected) await open(selected);
@@ -184,33 +164,6 @@ export function BookingsPage() {
         </button>
       </div>
       <OperationError error={error} />
-      <div className="toolbar">
-        <button
-          className={"btn " + (!archived ? "primary" : "ghost")}
-          disabled={busy}
-          onClick={() => {
-            setArchived(false);
-            setPage(0);
-            setSelected(null);
-            setDraft(null);
-          }}
-        >
-          Текущие
-        </button>
-        <button
-          className={"btn " + (archived ? "primary" : "ghost")}
-          disabled={busy}
-          onClick={() => {
-            setArchived(true);
-            setPage(0);
-            setSelected(null);
-            setDraft(null);
-          }}
-        >
-          Архив
-        </button>
-        <span className="muted">{data?.totalElements ?? 0} записей</span>
-      </div>
       {draft && (
         <form className="card stack" onSubmit={save}>
           <h2>{creating ? "Новая бронь" : "Изменение брони"}</h2>
@@ -396,6 +349,16 @@ export function BookingsPage() {
               <dd>{date(selected.updatedAt)}</dd>
             </div>
           </dl>
+          <BookingTagsEditor
+            booking={selected}
+            canEdit={editor && !selected.archived}
+            busy={busy}
+            run={run}
+            onSaved={async (b) => {
+              await open(b);
+              await load();
+            }}
+          />
           {editor && (
             <div className="toolbar">
               {editable && (
@@ -587,76 +550,16 @@ export function BookingsPage() {
           )}
         </article>
       )}
-      {loading ? (
-        <p role="status">Загрузка…</p>
-      ) : (
-        <div className="card table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Код</th>
-                <th>Пассажир</th>
-                <th>Рейс</th>
-                <th>Место</th>
-                <th>Стоимость</th>
-                <th>Статус</th>
-                <th>Срочность</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data?.content.map((b) => (
-                <tr key={b.id}>
-                  <td>
-                    <button
-                      className="text-button"
-                      disabled={busy}
-                      onClick={() => void run(() => open(b))}
-                    >
-                      {b.bookingCode}
-                    </button>
-                  </td>
-                  <td>
-                    {b.passenger.lastName} {b.passenger.firstName}
-                  </td>
-                  <td>
-                    {b.flight.flightNumber}
-                    <br />
-                    <small>{date(b.flight.departureTime)} UTC</small>
-                  </td>
-                  <td>{b.seatNumber}</td>
-                  <td>{b.price.toLocaleString("ru-RU")} ₽</td>
-                  <td>{statusNames[b.status]}</td>
-                  <td>
-                    <span className={"urgency " + b.urgencyLevel.toLowerCase()}>
-                      {urgencyNames[b.urgencyLevel]}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {!data?.content.length && <p className="empty">Бронирований нет</p>}
-        </div>
-      )}
-      <div className="toolbar">
-        <button
-          className="btn ghost"
-          disabled={busy || loading || page === 0}
-          onClick={() => setPage(page - 1)}
-        >
-          Назад
-        </button>
-        <span>
-          Страница {page + 1} из {Math.max(1, data?.totalPages ?? 1)}
-        </span>
-        <button
-          className="btn ghost"
-          disabled={busy || loading || page + 1 >= (data?.totalPages ?? 0)}
-          onClick={() => setPage(page + 1)}
-        >
-          Далее
-        </button>
-      </div>
+      <BookingList
+        busy={busy}
+        reloadKey={reloadKey}
+        selectedId={selected?.id}
+        editor={editor}
+        onOpen={(b) => void run(() => open(b))}
+        onChanged={() => {
+          if (selected) void run(() => open(selected));
+        }}
+      />
     </section>
   );
 }

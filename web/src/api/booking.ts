@@ -40,6 +40,7 @@ export interface Booking {
   version: number;
   status: BookingStatus;
   urgencyLevel: string;
+  tags: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -57,6 +58,7 @@ export interface Page<T> {
   totalElements: number;
   totalPages: number;
   number: number;
+  size: number;
 }
 export const statusNames: Record<BookingStatus, string> = {
   CREATED: "Ожидает оплаты",
